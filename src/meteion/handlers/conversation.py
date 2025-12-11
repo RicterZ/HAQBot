@@ -7,6 +7,8 @@ from typing import Dict, Any, Optional, Tuple
 from websocket import WebSocketApp
 
 from meteion.clients.homeassistant import HomeAssistantClient
+from meteion.clients.napcat import get_voice_file
+from meteion.clients.tencent_asr import sentence_recognize
 from meteion.utils import CommandEncoder
 from meteion.utils.logger import logger
 from meteion.models.message import Command, CommandType, TextMessage, ReplyMessage
@@ -15,15 +17,16 @@ from meteion.models.message import Command, CommandType, TextMessage, ReplyMessa
 _ha_client: HomeAssistantClient = None
 
 
-def is_bot_mentioned(message: dict) -> Tuple[bool, str]:
+def is_bot_mentioned(message: dict) -> Tuple[bool, str, Optional[str]]:
     bot_account = os.getenv("ACCOUNT", "").strip()
     if not bot_account:
-        return False, ""
+        return False, "", None
     
     message_array = message.get("message", [])
     if isinstance(message_array, list):
         is_mentioned = False
         text_parts = []
+        record_file = None
         
         for segment in message_array:
             if isinstance(segment, dict):
@@ -40,13 +43,16 @@ def is_bot_mentioned(message: dict) -> Tuple[bool, str]:
                     text_content = seg_data.get("text", "")
                     if text_content:
                         text_parts.append(text_content)
+                
+                elif seg_type == "record" and record_file is None:
+                    record_file = seg_data.get("file")
         
         clean_text = "".join(text_parts).strip()
-        return is_mentioned, clean_text
+        return is_mentioned, clean_text, record_file
     
     raw_message = message.get("raw_message", "").strip()
     if not raw_message:
-        return False, ""
+        return False, "", None
     
     cq_at_pattern = r'\[CQ:at,qq=(\d+|all)\]'
     matches = re.findall(cq_at_pattern, raw_message)
@@ -60,7 +66,7 @@ def is_bot_mentioned(message: dict) -> Tuple[bool, str]:
     clean_text = re.sub(cq_at_pattern, "", raw_message).strip()
     clean_text = re.sub(r'@\S+\s*', '', clean_text).strip()
     
-    return is_mentioned, clean_text
+    return is_mentioned, clean_text, None
 
 
 def get_ha_client() -> HomeAssistantClient:
@@ -79,15 +85,10 @@ def conversation_handler(ws: WebSocketApp, message: dict):
     group_id = message["group_id"]
     message_id = message.get("message_id")
     
-    is_mentioned, clean_text = is_bot_mentioned(message)
+    is_mentioned, clean_text, record_file = is_bot_mentioned(message)
     
     if not is_mentioned:
         return
-    
-    if not clean_text:
-        return
-    
-    logger.info(f"Received conversation message (after removing @): {clean_text}")
     
     try:
         try:
@@ -98,6 +99,16 @@ def conversation_handler(ws: WebSocketApp, message: dict):
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
         
+        if not clean_text and record_file:
+            audio_bytes = loop.run_until_complete(get_voice_file(record_file, out_format="mp3"))
+            clean_text = loop.run_until_complete(sentence_recognize(audio_bytes, voice_format="mp3"))
+            logger.info(f"ASR transcribed voice to text: {clean_text}")
+        
+        if not clean_text:
+            return
+        
+        logger.info(f"Received conversation message (after removing @): {clean_text}")
+    
         result = loop.run_until_complete(process_conversation_async(clean_text))
         
         response_text = ""
