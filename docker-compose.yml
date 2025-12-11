@@ -10,7 +10,6 @@ services:
       - "8080:8080"
     volumes:
       - ./.env.local:/app/.env:ro
-      - ./src/meteion:/app/src/meteion
     hostname: homeassistant-qq
 
   napcat:

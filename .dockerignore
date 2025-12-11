@@ -86,3 +86,13 @@ docs/
 dmypy.json
 .pyre/
 .pytype/
+
+# Exclude everything by default
+*
+
+# Explicitly include necessary files
+!src/
+!pyproject.toml
+!poetry.lock
+!entrypoint.sh
+!supervisord.conf
