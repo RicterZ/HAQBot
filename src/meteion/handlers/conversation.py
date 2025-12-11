@@ -100,9 +100,13 @@ def conversation_handler(ws: WebSocketApp, message: dict):
             asyncio.set_event_loop(loop)
         
         if not clean_text and record_file:
-            audio_bytes = loop.run_until_complete(get_voice_file(record_file, out_format="mp3"))
-            clean_text = loop.run_until_complete(sentence_recognize(audio_bytes, voice_format="mp3"))
-            logger.info(f"ASR transcribed voice to text: {clean_text}")
+            try:
+                audio_bytes = loop.run_until_complete(get_voice_file(record_file, out_format="mp3"))
+                clean_text = loop.run_until_complete(sentence_recognize(audio_bytes, voice_format="mp3"))
+                logger.info(f"ASR transcribed voice to text: {clean_text}")
+            except Exception as exc:
+                logger.warning(f"ASR failed, skip replying: {exc}")
+                return
         
         if not clean_text:
             return
