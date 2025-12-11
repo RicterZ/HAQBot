@@ -6,29 +6,16 @@ import httpx
 from meteion.utils.logger import logger
 
 
-def _build_http_base_url() -> str:
+async def get_voice_file(file: str, out_format: str = "mp3") -> bytes:
     raw = os.getenv("NAPCAT_API", "ws://napcat:3001")
     parsed = urlparse(raw)
-    
     if parsed.scheme in ("ws", "wss"):
         scheme = "http" if parsed.scheme == "ws" else "https"
-    elif parsed.scheme in ("http", "https"):
-        scheme = parsed.scheme
     else:
-        # 默认退回 http
-        scheme = "http"
-    
+        scheme = parsed.scheme or "http"
     hostname = parsed.hostname or "napcat"
-    port = parsed.port
-    
-    if not port:
-        port = 80 if scheme == "http" else 443
-    
-    return f"{scheme}://{hostname}:{port}"
-
-
-async def get_voice_file(file: str, out_format: str = "mp3") -> bytes:
-    base_url = _build_http_base_url()
+    port = parsed.port or (80 if scheme == "http" else 443)
+    base_url = f"{scheme}://{hostname}:{port}"
     api_url = base_url
     
     payload = {"file": file, "out_format": out_format}
