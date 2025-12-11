@@ -6,6 +6,7 @@ from meteion.utils import CommandEncoder
 from meteion.utils.logger import logger
 from meteion.models.message import Command, CommandType, TextMessage
 from meteion.handlers.conversation import conversation_handler
+from meteion.bot.connection import set_ws_connection
 
 
 def echo_handler(ws: WebSocketApp, message: dict):
@@ -24,6 +25,12 @@ def echo_handler(ws: WebSocketApp, message: dict):
 
 def on_error(ws, error):
     logger.error(error)
+
+
+def on_open(ws):
+    """WebSocket connection opened"""
+    set_ws_connection(ws)
+    logger.info("WebSocket connection established")
 
 
 def on_message(ws, message):

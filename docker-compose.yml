@@ -6,6 +6,8 @@ services:
     restart: unless-stopped
     environment:
       - TZ=Asia/Shanghai
+    ports:
+      - "8080:8080"
     volumes:
       - ./.env.local:/app/.env:ro
       - ./src/meteion:/app/src/meteion

@@ -1,9 +1,12 @@
 import websocket
 import os
 import rel
+import threading
 
-from meteion.bot.websocket import on_message, on_error
+from meteion.bot.websocket import on_message, on_error, on_open
 from meteion.utils.logger import logger
+from meteion.webhook.app import app
+import uvicorn
 from dotenv import load_dotenv
 
 
@@ -31,6 +34,9 @@ def print_startup_info():
     if account:
         logger.info(f"QQ Account: {account}")
     
+    webhook_port = int(os.getenv('WEBHOOK_PORT', '8080'))
+    logger.info(f"Webhook server port: {webhook_port}")
+    
     logger.info("=" * 60)
 
 
@@ -45,13 +51,23 @@ def main():
         logger.error("Exiting...")
         return
     
+    webhook_port = int(os.getenv('WEBHOOK_PORT', '8080'))
+    
+    def run_webhook():
+        uvicorn.run(app, host="0.0.0.0", port=webhook_port, log_level="info")
+    
+    webhook_thread = threading.Thread(target=run_webhook, daemon=True)
+    webhook_thread.start()
+    logger.info(f"Webhook server started on port {webhook_port}")
+    
     websocket.setdefaulttimeout(3)
     websocket_url = os.getenv('NAPCAT_API', 'ws://napcat:3001')
     logger.info(f"Connecting to NapCat WebSocket: {websocket_url}")
     
     ws = websocket.WebSocketApp(websocket_url,
                                 on_message=on_message,
-                                on_error=on_error)
+                                on_error=on_error,
+                                on_open=on_open)
 
     ws.run_forever(dispatcher=rel, reconnect=5)
     rel.signal(2, rel.abort)
