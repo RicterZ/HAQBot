@@ -8,9 +8,9 @@ from meteion.utils.logger import logger
 
 def main():
     websocket.setdefaulttimeout(3)
-    websocket_url = os.getenv('QQ_API', 'ws://napcat:3001')
+    websocket_url = os.getenv('NAPCAT_API', 'ws://napcat:3001')
     logger.info(f"Connecting to websocket {websocket_url}")
-    ws = websocket.WebSocketApp(os.getenv('QQ_API', 'ws://napcat:3001'),
+    ws = websocket.WebSocketApp(os.getenv('NAPCAT_API', 'ws://napcat:3001'),
                                 on_message=on_message,
                                 on_error=on_error)
 

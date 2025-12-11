@@ -34,11 +34,10 @@ def on_message(ws, message):
     if post_type != "message" or message.get("message_type") != "group":
         return
 
-    match message["raw_message"]:   
-        case "/echo ":
-            echo_handler(ws, message)
-        case _:
-            logger.info(message)
+    if message["raw_message"].startswith("/echo "):
+        echo_handler(ws, message)
+    else:
+        logger.info(message)
 
 
 if __name__ == "__main__":
