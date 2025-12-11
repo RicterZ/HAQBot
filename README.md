@@ -29,13 +29,9 @@ Create a `.env` file (refer to `.env.example`):
 
 ```env
 # NapCat WebSocket connection URL
-# Use 'napcat' when running in Docker (container name)
-# Use 'localhost' when running locally or testing from host
 NAPCAT_API=ws://napcat:3001
 
 # Home Assistant configuration
-# Use 'homeassistant' when running in Docker (container name)
-# Use your HA hostname/IP when running locally
 HA_URL=http://homeassistant:8123
 HA_TOKEN=your_long_lived_access_token_here
 HA_AGENT_ID=conversant.ollama_conversation
@@ -213,12 +209,3 @@ poetry run python src/meteion/main.py
 ```bash
 docker-compose up -d
 ```
-
-### Testing Container Connectivity
-
-If you need to test connectivity from the host machine:
-
-- **NapCat WebSocket**: Use `ws://localhost:3001` (port is mapped to host)
-- **Webhook endpoint**: Use `http://localhost:8080/webhook/notify` (port is mapped to host)
-
-**Note**: Container names (`napcat`, `homeassistant-qq`) are only resolvable within the Docker network. When accessing from the host, use `localhost` instead.
