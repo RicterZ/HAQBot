@@ -73,3 +73,22 @@ class ImageMessage(object):
 
     def as_dict(self):
         return {"type": "image", "data": self.data}
+
+
+class ReplyMessage(object):
+    """Reply message segment for referencing original message"""
+    data: dict | None = None
+
+    def __init__(self, message_id: str):
+        """
+        Initialize reply message
+        
+        Args:
+            message_id: ID of the message to reply to
+        """
+        self.data = {
+            "id": str(message_id)
+        }
+
+    def as_dict(self):
+        return {"type": "reply", "data": self.data}
