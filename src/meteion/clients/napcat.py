@@ -29,14 +29,15 @@ def _build_http_base_url() -> str:
 
 async def get_voice_file(file: str, out_format: str = "mp3") -> bytes:
     base_url = _build_http_base_url()
-    api_url = f"{base_url}/get_record"
+    api_url = base_url
     
     payload = {"file": file, "out_format": out_format}
-    logger.info(f"Requesting NapCat voice file: {payload}")
+    request_body = {"action": "get_record", "params": payload}
+    logger.info(f"Requesting NapCat voice file via action: {request_body}")
     
     async with httpx.AsyncClient(timeout=30.0) as client:
         try:
-            resp = await client.post(api_url, json=payload)
+            resp = await client.post(api_url, json=request_body)
             resp.raise_for_status()
         except Exception as exc:
             logger.error(f"NapCat get_record request failed: {exc}")
