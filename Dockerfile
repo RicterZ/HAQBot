@@ -43,7 +43,8 @@ RUN pip install --no-cache /wheels/*
 WORKDIR /app
 
 COPY supervisord.conf /etc/supervisor/conf.d/homeassistant-qq.conf
-COPY --chown=app:app . .
+COPY --chown=app:app src/ src/
+COPY --chown=app:app pyproject.toml poetry.lock ./
 
 USER root
 
