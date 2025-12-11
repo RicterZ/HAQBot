@@ -12,22 +12,10 @@ from meteion.utils.logger import logger
 from meteion.models.message import Command, CommandType, TextMessage, ReplyMessage
 
 
-# Global HA client instance
 _ha_client: HomeAssistantClient = None
 
 
 def is_bot_mentioned(message: dict) -> Tuple[bool, str]:
-    """
-    Check if bot is mentioned (@) in the message and extract clean text
-    
-    Args:
-        message: QQ message dictionary
-        
-    Returns:
-        Tuple of (is_mentioned, clean_text)
-        - is_mentioned: True if bot is mentioned
-        - clean_text: Text content with @ mentions removed
-    """
     bot_account = os.getenv("ACCOUNT", "").strip()
     if not bot_account:
         return False, ""
@@ -76,7 +64,6 @@ def is_bot_mentioned(message: dict) -> Tuple[bool, str]:
 
 
 def get_ha_client() -> HomeAssistantClient:
-    """Get or create HA client instance"""
     global _ha_client
     if _ha_client is None:
         _ha_client = HomeAssistantClient()
@@ -84,25 +71,11 @@ def get_ha_client() -> HomeAssistantClient:
 
 
 async def process_conversation_async(text: str, language: Optional[str] = None) -> Dict[str, Any]:
-    """
-    Process conversation request asynchronously
-    
-    Args:
-        text: User input text
-        language: Optional language code (e.g., "en", "zh-Hans")
-    """
     client = get_ha_client()
     return await client.process_conversation(text, language=language)
 
 
 def conversation_handler(ws: WebSocketApp, message: dict):
-    """
-    Handle conversation message
-    
-    Args:
-        ws: WebSocket connection
-        message: QQ message dictionary
-    """
     group_id = message["group_id"]
     message_id = message.get("message_id")
     

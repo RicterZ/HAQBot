@@ -8,8 +8,6 @@ from meteion.utils.logger import logger
 
 
 class HomeAssistantClient:
-    """Home Assistant API client"""
-
     def __init__(self):
         self.base_url = os.getenv("HA_URL", "http://homeassistant:8123")
         self.token = os.getenv("HA_TOKEN", "")
@@ -35,17 +33,6 @@ class HomeAssistantClient:
         agent_id: Optional[str] = None,
         language: Optional[str] = None
     ) -> Dict[str, Any]:
-        """
-        Process conversation request
-        
-        Args:
-            text: User input text
-            agent_id: Conversation agent ID, defaults to the one configured in environment variable
-            language: Language of the input sentence (optional)
-            
-        Returns:
-            Conversation response result containing conversation_id
-        """
         if agent_id is None:
             agent_id = self.agent_id
         
@@ -92,7 +79,6 @@ class HomeAssistantClient:
             raise
 
     async def close(self):
-        """Close client connection"""
         await self.client.aclose()
 
     async def __aenter__(self):

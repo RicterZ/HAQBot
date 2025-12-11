@@ -9,7 +9,6 @@ from meteion.handlers.conversation import conversation_handler
 
 
 def echo_handler(ws: WebSocketApp, message: dict):
-    """Echo handler for testing"""
     group_id = message["group_id"]
     resp = message["raw_message"][6:]
 
@@ -24,12 +23,10 @@ def echo_handler(ws: WebSocketApp, message: dict):
 
 
 def on_error(ws, error):
-    """WebSocket error handler"""
     logger.error(error)
 
 
 def on_message(ws, message):
-    """WebSocket message handler"""
     message = json.loads(message)
     post_type = message.get("post_type", None)
 
