@@ -75,12 +75,12 @@ async def sentence_recognize(
     project_id: Optional[int] = None,
 ) -> str:
     if not data:
-        raise ValueError("语音数据为空")
+        raise ValueError("Audio data is empty")
 
     secret_id = os.getenv("TENCENT_SECRET_ID", "").strip()
     secret_key = os.getenv("TENCENT_SECRET_KEY", "").strip()
     if not secret_id or not secret_key:
-        raise RuntimeError("缺少腾讯云密钥，请配置 TENCENT_SECRET_ID 和 TENCENT_SECRET_KEY")
+        raise RuntimeError("Missing Tencent Cloud credentials: set TENCENT_SECRET_ID and TENCENT_SECRET_KEY")
 
     region = os.getenv("TENCENT_ASR_REGION", "").strip() or None
     engine = eng_service_type or os.getenv("TENCENT_ASR_ENGINE", "16k_zh").strip()
@@ -100,7 +100,7 @@ async def sentence_recognize(
     headers = _build_tc3_headers(body, ts, secret_id, secret_key, region)
 
     url = "https://asr.tencentcloudapi.com"
-    logger.info("调用腾讯云一句话识别")
+    logger.info("Calling Tencent Cloud sentence recognition")
 
     async with httpx.AsyncClient(timeout=30.0) as client:
         resp = await client.post(url, content=body, headers=headers)
@@ -109,17 +109,17 @@ async def sentence_recognize(
 
     response = result.get("Response") if isinstance(result, dict) else None
     if not response:
-        raise RuntimeError("腾讯云返回结构异常")
+        raise RuntimeError("Tencent Cloud returned invalid structure")
 
     if "Error" in response:
         err = response["Error"]
         code = err.get("Code")
         msg = err.get("Message")
-        raise RuntimeError(f"腾讯云语音识别错误: {code} - {msg}")
+        raise RuntimeError(f"Tencent Cloud ASR error: {code} - {msg}")
 
     text = response.get("Result")
     if not text:
-        raise RuntimeError("腾讯云未返回识别结果")
+        raise RuntimeError("Tencent Cloud did not return recognition result")
 
     return text
 

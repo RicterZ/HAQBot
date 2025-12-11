@@ -87,7 +87,7 @@ def conversation_handler(ws: WebSocketApp, message: dict):
     
     is_mentioned, clean_text, record_file = is_bot_mentioned(message)
     
-    if not is_mentioned:
+    if not is_mentioned and not record_file:
         return
     
     try:
