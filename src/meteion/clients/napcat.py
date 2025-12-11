@@ -1,3 +1,4 @@
+import base64
 import json
 import os
 import uuid
@@ -52,6 +53,8 @@ async def get_voice_file(file: str, out_format: str = "mp3") -> bytes:
                 continue
             if candidate.get("echo") and candidate.get("echo") != echo:
                 continue
+            if not candidate.get("status"):
+                continue
             response = candidate
             break
     except Exception as exc:
@@ -71,18 +74,30 @@ async def get_voice_file(file: str, out_format: str = "mp3") -> bytes:
         raise RuntimeError("NapCat failed to provide voice file")
     
     record_file = None
+    record_url = None
+    record_base64 = None
     data = response.get("data") or {}
     if isinstance(data, dict):
-        record_file = data.get("file") or data.get("url")
+        record_url = data.get("url")
+        record_file = data.get("file")
+        record_base64 = data.get("base64")
     
-    if not record_file:
-        logger.error(f"NapCat response missing file info: {response}")
+    if record_base64:
+        try:
+            return base64.b64decode(record_base64)
+        except Exception as exc:
+            logger.error(f"Failed to decode base64 voice data: {exc}")
+            raise RuntimeError("NapCat returned invalid base64 voice data") from exc
+    
+    target = record_url or record_file
+    if not target:
+        logger.error(f"NapCat response missing file/url/base64: {response}")
         raise RuntimeError("NapCat did not return a valid voice file path")
     
-    if record_file.startswith("http://") or record_file.startswith("https://"):
-        download_url = record_file
+    if target.startswith("http://") or target.startswith("https://"):
+        download_url = target
     else:
-        download_url = f"{base_url}/{record_file.lstrip('/')}"
+        download_url = f"{base_url}/{target.lstrip('/')}"
     
     async with httpx.AsyncClient(timeout=30.0) as client:
         try:
