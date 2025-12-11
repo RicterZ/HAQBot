@@ -1,0 +1,98 @@
+# Version control
+.git/
+.gitignore
+.gitattributes
+
+# Python artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Test and coverage
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+htmlcov/
+cover/
+
+# Development environments and tools
+.env
+.venv/
+env/
+venv/
+ENV/
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+.python-version
+
+# Project specific
+data/cache/*
+data/napcat/*
+!data/cache/.gitkeep
+!data/cache/default.gif
+
+# Docker
+.docker/
+docker-compose*.yml
+docker-compose*.yaml
+
+# Documentation
+docs/
+*.md
+!README.md
+
+# Logs and databases
+*.log
+*.sqlite
+*.db
+
+# Local development configuration
+.env*
+!.env.default
+
+# Cache directories
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pyre/
+.pytype/
+
+# Exclude everything by default
+*
+
+# Explicitly include necessary files
+!src/
+!pyproject.toml
+!poetry.lock
+!entrypoint.sh
+!supervisord.conf

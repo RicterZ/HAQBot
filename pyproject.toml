@@ -1,0 +1,18 @@
+[tool.poetry]
+name = "meteion"
+version = "0.1.0"
+description = "QQ bot for controlling Home Assistant"
+authors = ["Ricter Z <ricterzheng@gmail.com>"]
+license = "GPL"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+websocket-client = "^1.8.0"
+rel = "^0.4.9.19"
+python-dotenv = "^1.0.1"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
