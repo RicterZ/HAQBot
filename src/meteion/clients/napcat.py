@@ -34,7 +34,26 @@ async def get_voice_file(file: str, out_format: str = "mp3") -> bytes:
     
     try:
         ws.send(json.dumps(request_body))
-        response_raw = ws.recv()
+        response = None
+        for _ in range(5):
+            try:
+                response_raw = ws.recv()
+            except Exception as exc:
+                logger.error(f"Failed to receive get_record via websocket: {exc}")
+                break
+            try:
+                candidate = json.loads(response_raw)
+            except Exception:
+                continue
+            if not isinstance(candidate, dict):
+                continue
+            # Skip meta_event or unrelated messages
+            if candidate.get("post_type") == "meta_event":
+                continue
+            if candidate.get("echo") and candidate.get("echo") != echo:
+                continue
+            response = candidate
+            break
     except Exception as exc:
         ws.close()
         logger.error(f"Failed to send/receive get_record via websocket: {exc}")
@@ -42,28 +61,22 @@ async def get_voice_file(file: str, out_format: str = "mp3") -> bytes:
     finally:
         ws.close()
     
-    try:
-        result = json.loads(response_raw)
-    except Exception as exc:
-        logger.error(f"Failed to parse NapCat websocket response: {exc}")
-        raise RuntimeError("NapCat returned an unparseable websocket response") from exc
+    if response is None:
+        raise RuntimeError("NapCat did not return get_record response")
     
-    if result.get("echo") != echo:
-        logger.warning(f"Echo mismatch for get_record response: {result}")
-    
-    status = result.get("status")
-    retcode = result.get("retcode")
+    status = response.get("status")
+    retcode = response.get("retcode")
     if status not in ("ok", "OK") and retcode not in (0, None):
-        logger.error(f"NapCat get_record returned error: {result}")
+        logger.error(f"NapCat get_record returned error: {response}")
         raise RuntimeError("NapCat failed to provide voice file")
     
     record_file = None
-    data = result.get("data") or {}
+    data = response.get("data") or {}
     if isinstance(data, dict):
         record_file = data.get("file") or data.get("url")
     
     if not record_file:
-        logger.error(f"NapCat response missing file info: {result}")
+        logger.error(f"NapCat response missing file info: {response}")
         raise RuntimeError("NapCat did not return a valid voice file path")
     
     if record_file.startswith("http://") or record_file.startswith("https://"):
