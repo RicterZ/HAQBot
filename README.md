@@ -1,81 +1,81 @@
-homeassistant-qq
+HAQBot
 ================
-QQ 控制 Home Assistant 的助手
+QQ Bot for controlling Home Assistant devices via natural language conversation
 
-## 功能
+## Features
 
-通过 QQ 群聊接收消息，接入 Home Assistant 的对话代理（Ollama）来控制设备和服务。
+Receives messages from QQ group chats and connects to Home Assistant's conversation agent (Ollama) to control devices and services.
 
-## 工作原理
+## How It Works
 
 ```
-QQ 消息 → NapCat WebSocket → QQ Bot → HA Conversation API → Ollama 对话代理 → 设备控制
+QQ Message → NapCat WebSocket → QQ Bot → HA Conversation API → Ollama Agent → Device Control
                 ↓                                                      ↓
-           返回结果 ← QQ 回复 ← HA 响应 ← 执行结果
+            Response ← QQ Reply ← HA Response ← Execution Result
 ```
 
-1. 通过 WebSocket 连接到 NapCat（QQ 机器人框架）
-2. 接收 QQ 群聊消息
-3. 将消息转发到 Home Assistant 的 Conversation API
-4. HA 的 Ollama 对话代理处理并执行设备控制
-5. 将执行结果返回给 QQ 用户
+1. Connect to NapCat (QQ bot framework) via WebSocket
+2. Receive messages from QQ group chats
+3. Forward messages to Home Assistant's Conversation API
+4. HA's Ollama conversation agent processes and executes device control
+5. Return execution results to QQ users
 
-## 配置
+## Configuration
 
-### 环境变量
+### Environment Variables
 
-创建 `.env` 文件（参考 `.env.example`）：
+Create a `.env` file (refer to `.env.example`):
 
 ```env
-# NapCat WebSocket 连接地址
+# NapCat WebSocket connection URL
 NAPCAT_API=ws://napcat:3001
 
-# Home Assistant 配置
+# Home Assistant configuration
 HA_URL=http://homeassistant:8123
 HA_TOKEN=your_long_lived_access_token_here
 HA_AGENT_ID=conversant.ollama_conversation
 
-# QQ 账号（可选）
+# QQ account (optional)
 ACCOUNT=2167634556
 ```
 
-### 获取 HA Token
+### Getting HA Token
 
-1. 登录 Home Assistant
-2. 点击个人资料 → 长期访问令牌
-3. 创建新令牌并复制
+1. Log in to Home Assistant
+2. Click Profile → Long-Lived Access Tokens
+3. Create a new token and copy it
 
-### 配置对话代理
+### Configuring Conversation Agent
 
-确保 Home Assistant 中已配置 `conversant.ollama_conversation` 对话代理。
+Ensure that the `conversant.ollama_conversation` conversation agent is configured in Home Assistant.
 
-## 使用方法
+## Usage
 
-1. 在 QQ 群中发送消息（不需要命令前缀）
-2. 机器人会将消息转发给 HA 的对话代理
-3. 对话代理处理并执行相应的设备控制
-4. 返回执行结果
+1. Send a message in a QQ group (no command prefix required)
+2. The bot will forward the message to HA's conversation agent
+3. The conversation agent processes and executes the corresponding device control
+4. Returns the execution result
 
-### 示例
+### Example
 
-- 用户: "打开客厅的灯"
-- 机器人: "已打开客厅的灯"
+- User: "Turn on the living room light"
+- Bot: "The living room light has been turned on"
 
-## 开发
+## Development
 
-### 安装依赖
+### Install Dependencies
 
 ```bash
 poetry install
 ```
 
-### 运行
+### Run
 
 ```bash
 poetry run python src/meteion/main.py
 ```
 
-### Docker 运行
+### Docker Run
 
 ```bash
 docker-compose up -d
