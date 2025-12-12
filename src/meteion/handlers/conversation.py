@@ -188,7 +188,7 @@ def conversation_handler(ws: WebSocketApp, message: dict):
     
     is_mentioned, clean_text, record_file = is_bot_mentioned(message)
     
-    if not is_mentioned and not record_file:
+    if not clean_text and not record_file:
         return
     
     task = _process_conversation_task(ws, group_id, message_id, clean_text, record_file)
