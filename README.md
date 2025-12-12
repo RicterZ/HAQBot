@@ -182,7 +182,7 @@ automation:
           message: "家庭温度太冷了，小仓鼠要冻死了喵"
 ```
 
-#### Example 2: Washing Machine Finished Notification
+#### Example 2: Full Parameters Notification
 
 ```yaml
 automation:
@@ -198,65 +198,6 @@ automation:
           message: "🧺 Washing machine finished! Clothes are ready to be taken out."
           token: "your_webhook_token_here"
 ```
-
-#### Example 3: Air Conditioner Turned On Notification
-
-```yaml
-automation:
-  - alias: "Air Conditioner Turned On Notification"
-    trigger:
-      - platform: state
-        entity_id: climate.living_room_ac
-        to: "cool"
-    condition:
-      - condition: state
-        entity_id: climate.living_room_ac
-        state: "cool"
-    action:
-      - service: rest_command.homeassistant_qq
-        data:
-          group_id: "123456789"
-          message: "❄️ Air conditioner in living room has been turned on (Cooling mode)"
-          token: "your_webhook_token_here"
-```
-
-#### Example 4: Door Opened Notification
-
-```yaml
-automation:
-  - alias: "Front Door Opened Notification"
-    trigger:
-      - platform: state
-        entity_id: binary_sensor.front_door
-        to: "on"
-    action:
-      - service: rest_command.homeassistant_qq
-        data:
-          group_id: "123456789"
-          message: "🚪 Front door has been opened"
-          token: "your_webhook_token_here"
-```
-
-#### Example 5: Temperature Alert
-
-```yaml
-automation:
-  - alias: "High Temperature Alert"
-    trigger:
-      - platform: numeric_state
-        entity_id: sensor.living_room_temperature
-        above: 30
-    action:
-      - service: rest_command.homeassistant_qq
-        data:
-          group_id: "123456789"
-          message: "🌡️ Temperature alert: Living room temperature is {{ states('sensor.living_room_temperature') }}°C"
-          token: "your_webhook_token_here"
-```
-
-### Getting QQ Group ID
-
-To get your QQ group ID, you can check the group information in NapCat or use the bot's logging output when it receives a message from the group.
 
 ### Security
 
