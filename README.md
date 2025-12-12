@@ -129,9 +129,60 @@ The bot provides a webhook endpoint that allows Home Assistant to send proactive
 - `message` (required): Message text to send
 - `token` (optional): Webhook authentication token (if `WEBHOOK_TOKEN` is set)
 
+### Configuring REST Command
+
+Add the following to your `configuration.yaml`:
+
+```yaml
+rest_command:
+  homeassistant_qq:
+    url: "http://homeassistant-qq:8080/webhook/notify"
+    method: POST
+    content_type: "application/json"
+    payload: |
+      {
+        "group_id": "{{ group_id }}",
+        "message": "{{ message }}",
+        "token": "{{ token | default('') }}"
+      }
+```
+
+Or if you want to set a default group_id:
+
+```yaml
+rest_command:
+  homeassistant_qq:
+    url: "http://homeassistant-qq:8080/webhook/notify"
+    method: POST
+    content_type: "application/json"
+    payload: |
+      {
+        "group_id": "123456789",
+        "message": "{{ message }}",
+        "token": "{{ token | default('') }}"
+      }
+```
+
 ### Home Assistant Automation Examples
 
-#### Example 1: Washing Machine Finished Notification
+#### Example 1: Simple Notification (with default group_id)
+
+If you've set a default `group_id` in the `rest_command` configuration:
+
+```yaml
+automation:
+  - alias: "Simple Notification"
+    trigger:
+      - platform: state
+        entity_id: sensor.some_sensor
+        to: "active"
+    action:
+      - service: rest_command.homeassistant_qq
+        data:
+          message: "家庭温度太冷了，小仓鼠要冻死了喵"
+```
+
+#### Example 2: Washing Machine Finished Notification
 
 ```yaml
 automation:
@@ -141,18 +192,14 @@ automation:
         entity_id: sensor.washing_machine_status
         to: "completed"
     action:
-      - service: http.post
+      - service: rest_command.homeassistant_qq
         data:
-          url: "http://homeassistant-qq:8080/webhook/notify"
-          headers:
-            Content-Type: application/json
-          data:
-            group_id: "123456789"
-            message: "🧺 Washing machine finished! Clothes are ready to be taken out."
-            token: "your_webhook_token_here"
+          group_id: "123456789"
+          message: "🧺 Washing machine finished! Clothes are ready to be taken out."
+          token: "your_webhook_token_here"
 ```
 
-#### Example 2: Air Conditioner Turned On Notification
+#### Example 3: Air Conditioner Turned On Notification
 
 ```yaml
 automation:
@@ -166,18 +213,14 @@ automation:
         entity_id: climate.living_room_ac
         state: "cool"
     action:
-      - service: http.post
+      - service: rest_command.homeassistant_qq
         data:
-          url: "http://homeassistant-qq:8080/webhook/notify"
-          headers:
-            Content-Type: application/json
-          data:
-            group_id: "123456789"
-            message: "❄️ Air conditioner in living room has been turned on (Cooling mode)"
-            token: "your_webhook_token_here"
+          group_id: "123456789"
+          message: "❄️ Air conditioner in living room has been turned on (Cooling mode)"
+          token: "your_webhook_token_here"
 ```
 
-#### Example 3: Door Opened Notification
+#### Example 4: Door Opened Notification
 
 ```yaml
 automation:
@@ -187,18 +230,14 @@ automation:
         entity_id: binary_sensor.front_door
         to: "on"
     action:
-      - service: http.post
+      - service: rest_command.homeassistant_qq
         data:
-          url: "http://homeassistant-qq:8080/webhook/notify"
-          headers:
-            Content-Type: application/json
-          data:
-            group_id: "123456789"
-            message: "🚪 Front door has been opened"
-            token: "your_webhook_token_here"
+          group_id: "123456789"
+          message: "🚪 Front door has been opened"
+          token: "your_webhook_token_here"
 ```
 
-#### Example 4: Temperature Alert
+#### Example 5: Temperature Alert
 
 ```yaml
 automation:
@@ -208,15 +247,11 @@ automation:
         entity_id: sensor.living_room_temperature
         above: 30
     action:
-      - service: http.post
+      - service: rest_command.homeassistant_qq
         data:
-          url: "http://homeassistant-qq:8080/webhook/notify"
-          headers:
-            Content-Type: application/json
-          data:
-            group_id: "123456789"
-            message: "🌡️ Temperature alert: Living room temperature is {{ states('sensor.living_room_temperature') }}°C"
-            token: "your_webhook_token_here"
+          group_id: "123456789"
+          message: "🌡️ Temperature alert: Living room temperature is {{ states('sensor.living_room_temperature') }}°C"
+          token: "your_webhook_token_here"
 ```
 
 ### Getting QQ Group ID
