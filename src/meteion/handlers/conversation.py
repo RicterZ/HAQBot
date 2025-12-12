@@ -2,6 +2,7 @@ import asyncio
 import json
 import os
 import re
+import threading
 from typing import Dict, Any, Optional, Tuple
 
 from websocket import WebSocketApp
@@ -81,28 +82,27 @@ async def process_conversation_async(text: str, language: Optional[str] = None) 
     return await client.process_conversation(text, language=language)
 
 
-def conversation_handler(ws: WebSocketApp, message: dict):
-    group_id = message["group_id"]
-    message_id = message.get("message_id")
-    
-    is_mentioned, clean_text, record_file = is_bot_mentioned(message)
-    
-    if not is_mentioned and not record_file:
-        return
-    
+def _send_response(ws: WebSocketApp, group_id: str, message_id: Optional[str], response_text: str):
+    message_segments = []
+    if message_id:
+        message_segments.append(ReplyMessage(message_id))
+    message_segments.append(TextMessage(response_text))
+    command = Command(
+        action=CommandType.send_group_msg,
+        params={
+            "group_id": group_id,
+            "message": [msg.as_dict() for msg in message_segments]
+        }
+    )
+    ws.send(json.dumps(command, cls=CommandEncoder))
+
+
+async def _process_conversation_task(ws: WebSocketApp, group_id: str, message_id: Optional[str], clean_text: Optional[str], record_file: Optional[str]):
     try:
-        try:
-            loop = asyncio.get_event_loop()
-            if loop.is_closed():
-                raise RuntimeError("Event loop is closed")
-        except RuntimeError:
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-        
         if not clean_text and record_file:
             try:
-                audio_bytes = loop.run_until_complete(get_voice_file(record_file, out_format="mp3"))
-                clean_text = loop.run_until_complete(sentence_recognize(audio_bytes, voice_format="mp3"))
+                audio_bytes = await get_voice_file(record_file, out_format="mp3")
+                clean_text = await sentence_recognize(audio_bytes, voice_format="mp3")
                 logger.info(f"ASR transcribed voice to text: {clean_text}")
             except Exception as exc:
                 logger.warning(f"ASR failed, skip replying: {exc}")
@@ -112,8 +112,8 @@ def conversation_handler(ws: WebSocketApp, message: dict):
             return
         
         logger.info(f"Received conversation message (after removing @): {clean_text}")
-    
-        result = loop.run_until_complete(process_conversation_async(clean_text))
+        
+        result = await process_conversation_async(clean_text)
         
         response_text = ""
         response_type = None
@@ -165,33 +165,33 @@ def conversation_handler(ws: WebSocketApp, message: dict):
         
         logger.info(f"Conversation response: {response_text[:100]}{'...' if len(response_text) > 100 else ''}")
         
-        message_segments = []
-        if message_id:
-            message_segments.append(ReplyMessage(message_id))
-        message_segments.append(TextMessage(response_text))
-        command = Command(
-            action=CommandType.send_group_msg,
-            params={
-                "group_id": group_id,
-                "message": [msg.as_dict() for msg in message_segments]
-            }
-        )
-        ws.send(json.dumps(command, cls=CommandEncoder))
+        _send_response(ws, group_id, message_id, response_text)
         
     except Exception as e:
         logger.error(f"Error processing conversation: {e}", exc_info=True)
         error_msg = f"Error processing request: {str(e)}"
-        message_segments = []
-        if message_id:
-            message_segments.append(ReplyMessage(message_id))
-        message_segments.append(TextMessage(error_msg))
-        
-        command = Command(
-            action=CommandType.send_group_msg,
-            params={
-                "group_id": group_id,
-                "message": [msg.as_dict() for msg in message_segments]
-            }
-        )
-        ws.send(json.dumps(command, cls=CommandEncoder))
+        _send_response(ws, group_id, message_id, error_msg)
+
+
+def _run_async_task(coro):
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
+        loop.run_until_complete(coro)
+    finally:
+        loop.close()
+
+
+def conversation_handler(ws: WebSocketApp, message: dict):
+    group_id = message["group_id"]
+    message_id = message.get("message_id")
+    
+    is_mentioned, clean_text, record_file = is_bot_mentioned(message)
+    
+    if not is_mentioned and not record_file:
+        return
+    
+    task = _process_conversation_task(ws, group_id, message_id, clean_text, record_file)
+    thread = threading.Thread(target=_run_async_task, args=(task,), daemon=True)
+    thread.start()
 
