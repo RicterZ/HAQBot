@@ -36,7 +36,7 @@ QQ Voice → NapCat WebSocket → QQ Bot → Get Voice File → Tencent ASR → 
 
 ### Environment Variables
 
-Create a `.env` file (refer to `.env.example`):
+Create a `.env` file (refer to `.env.local`):
 
 ```env
 # NapCat WebSocket connection URL

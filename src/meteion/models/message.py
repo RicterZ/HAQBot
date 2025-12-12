@@ -5,7 +5,6 @@ from enum import Enum
 
 class CommandType(Enum):
     send_group_msg = "send_group_msg"
-    send_group_forward_msg = "send_group_forward_msg"
 
 
 class Command(object):

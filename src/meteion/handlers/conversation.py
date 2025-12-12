@@ -1,6 +1,5 @@
 import asyncio
 import json
-import os
 import re
 import threading
 from typing import Dict, Any, Optional, Tuple
@@ -28,14 +27,9 @@ def clear_conversation_context(group_id: str):
     return False
 
 
-def is_bot_mentioned(message: dict) -> Tuple[bool, str, Optional[str]]:
-    bot_account = os.getenv("ACCOUNT", "").strip()
-    if not bot_account:
-        return False, "", None
-    
+def extract_message_content(message: dict) -> Tuple[str, Optional[str]]:
     message_array = message.get("message", [])
     if isinstance(message_array, list):
-        is_mentioned = False
         text_parts = []
         record_file = None
         
@@ -45,39 +39,26 @@ def is_bot_mentioned(message: dict) -> Tuple[bool, str, Optional[str]]:
                 seg_data = segment.get("data", {})
                 
                 if seg_type == "at":
-                    qq = seg_data.get("qq", "")
-                    if str(qq) == str(bot_account) or qq == "all":
-                        is_mentioned = True
                     continue
-                
                 elif seg_type == "text":
                     text_content = seg_data.get("text", "")
                     if text_content:
                         text_parts.append(text_content)
-                
                 elif seg_type == "record" and record_file is None:
                     record_file = seg_data.get("file")
         
         clean_text = "".join(text_parts).strip()
-        return is_mentioned, clean_text, record_file
+        return clean_text, record_file
     
     raw_message = message.get("raw_message", "").strip()
     if not raw_message:
-        return False, "", None
+        return "", None
     
     cq_at_pattern = r'\[CQ:at,qq=(\d+|all)\]'
-    matches = re.findall(cq_at_pattern, raw_message)
-    
-    is_mentioned = False
-    for qq in matches:
-        if str(qq) == str(bot_account) or qq == "all":
-            is_mentioned = True
-            break
-    
     clean_text = re.sub(cq_at_pattern, "", raw_message).strip()
     clean_text = re.sub(r'@\S+\s*', '', clean_text).strip()
     
-    return is_mentioned, clean_text, None
+    return clean_text, None
 
 
 async def process_conversation_async(text: str, group_id: str, language: Optional[str] = None) -> Dict[str, Any]:
@@ -202,7 +183,7 @@ def conversation_handler(ws: WebSocketApp, message: dict):
     group_id = message["group_id"]
     message_id = message.get("message_id")
     
-    is_mentioned, clean_text, record_file = is_bot_mentioned(message)
+    clean_text, record_file = extract_message_content(message)
     
     if not clean_text and not record_file:
         return
