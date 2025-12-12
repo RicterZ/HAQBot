@@ -15,6 +15,10 @@ from meteion.utils.logger import logger
 from meteion.models.message import Command, CommandType, TextMessage, ReplyMessage
 
 
+_conversation_ids: Dict[str, Optional[str]] = {}
+_conversation_lock = threading.Lock()
+
+
 def is_bot_mentioned(message: dict) -> Tuple[bool, str, Optional[str]]:
     bot_account = os.getenv("ACCOUNT", "").strip()
     if not bot_account:
@@ -67,10 +71,20 @@ def is_bot_mentioned(message: dict) -> Tuple[bool, str, Optional[str]]:
     return is_mentioned, clean_text, None
 
 
-async def process_conversation_async(text: str, language: Optional[str] = None) -> Dict[str, Any]:
+async def process_conversation_async(text: str, group_id: str, language: Optional[str] = None) -> Dict[str, Any]:
+    with _conversation_lock:
+        conversation_id = _conversation_ids.get(group_id)
+    
     client = HomeAssistantClient()
     try:
-        return await client.process_conversation(text, language=language)
+        result = await client.process_conversation(text, language=language, conversation_id=conversation_id)
+        
+        if isinstance(result, dict) and "conversation_id" in result:
+            new_conversation_id = result["conversation_id"]
+            with _conversation_lock:
+                _conversation_ids[group_id] = new_conversation_id
+        
+        return result
     finally:
         await client.close()
 
@@ -106,7 +120,7 @@ async def _process_conversation_task(ws: WebSocketApp, group_id: str, message_id
         
         logger.info(f"Received conversation message (after removing @): {clean_text}")
         
-        result = await process_conversation_async(clean_text)
+        result = await process_conversation_async(clean_text, group_id)
         
         response_text = ""
         response_type = None

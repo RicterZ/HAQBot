@@ -12,7 +12,6 @@ class HomeAssistantClient:
         self.base_url = os.getenv("HA_URL", "http://homeassistant:8123")
         self.token = os.getenv("HA_TOKEN", "")
         self.agent_id = os.getenv("HA_AGENT_ID", "conversant.ollama_conversation")
-        self.conversation_id: Optional[str] = None
         
         if not self.token:
             raise ValueError("HA_TOKEN environment variable is not set")
@@ -31,7 +30,8 @@ class HomeAssistantClient:
         self, 
         text: str, 
         agent_id: Optional[str] = None,
-        language: Optional[str] = None
+        language: Optional[str] = None,
+        conversation_id: Optional[str] = None
     ) -> Dict[str, Any]:
         if agent_id is None:
             agent_id = self.agent_id
@@ -46,8 +46,8 @@ class HomeAssistantClient:
         if language:
             payload["language"] = language
         
-        if self.conversation_id:
-            payload["conversation_id"] = self.conversation_id
+        if conversation_id:
+            payload["conversation_id"] = conversation_id
         
         url = "/api/conversation/process"
         
@@ -59,16 +59,6 @@ class HomeAssistantClient:
             
             result = response.json()
             logger.info(f"Received HA response (status: {response.status_code})")
-            
-            if isinstance(result, dict) and "conversation_id" in result:
-                new_conversation_id = result["conversation_id"]
-                
-                if self.conversation_id != new_conversation_id:
-                    if self.conversation_id is None:
-                        logger.info(f"Started new conversation: {new_conversation_id}")
-                    else:
-                        logger.info(f"Conversation ID updated: {self.conversation_id} -> {new_conversation_id}")
-                    self.conversation_id = new_conversation_id
             
             return result
         except httpx.HTTPStatusError as e:
