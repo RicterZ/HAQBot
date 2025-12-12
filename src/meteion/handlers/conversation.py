@@ -71,9 +71,11 @@ def is_bot_mentioned(message: dict) -> Tuple[bool, str, Optional[str]]:
     return is_mentioned, clean_text, None
 
 
-async def process_conversation_async(text: str, group_id: str, language: Optional[str] = None) -> Dict[str, Any]:
-    with _conversation_lock:
-        conversation_id = _conversation_ids.get(group_id)
+async def process_conversation_async(text: str, group_id: str, language: Optional[str] = None, clear_context: bool = False) -> Dict[str, Any]:
+    conversation_id = None
+    if not clear_context:
+        with _conversation_lock:
+            conversation_id = _conversation_ids.get(group_id)
     
     client = HomeAssistantClient()
     try:
@@ -118,9 +120,29 @@ async def _process_conversation_task(ws: WebSocketApp, group_id: str, message_id
         if not clean_text:
             return
         
+        clear_context = False
+        clean_text_stripped = clean_text.strip()
+        clean_text_lower = clean_text_stripped.lower()
+        
+        if clean_text_lower in ("/clear", "/reset", "/清除", "/重置"):
+            clear_context = True
+            with _conversation_lock:
+                if group_id in _conversation_ids:
+                    del _conversation_ids[group_id]
+            logger.info(f"Cleared conversation context for group {group_id}")
+            _send_response(ws, group_id, message_id, "Conversation context cleared.")
+            return
+        elif clean_text_lower.startswith(("/clear ", "/reset ", "/清除 ", "/重置 ")):
+            clear_context = True
+            with _conversation_lock:
+                if group_id in _conversation_ids:
+                    del _conversation_ids[group_id]
+            logger.info(f"Cleared conversation context for group {group_id}")
+            clean_text = clean_text_stripped.split(" ", 1)[1] if " " in clean_text_stripped else clean_text_stripped
+        
         logger.info(f"Received conversation message (after removing @): {clean_text}")
         
-        result = await process_conversation_async(clean_text, group_id)
+        result = await process_conversation_async(clean_text, group_id, clear_context=clear_context)
         
         response_text = ""
         response_type = None
