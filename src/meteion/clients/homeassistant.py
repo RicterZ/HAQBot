@@ -23,7 +23,7 @@ class HomeAssistantClient:
         self.client = httpx.AsyncClient(
             base_url=self.base_url,
             headers=self.headers,
-            timeout=120.0,
+            timeout=600.0,
         )
 
     async def process_conversation(
