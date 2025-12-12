@@ -15,9 +15,6 @@ from meteion.utils.logger import logger
 from meteion.models.message import Command, CommandType, TextMessage, ReplyMessage
 
 
-_ha_client: HomeAssistantClient = None
-
-
 def is_bot_mentioned(message: dict) -> Tuple[bool, str, Optional[str]]:
     bot_account = os.getenv("ACCOUNT", "").strip()
     if not bot_account:
@@ -70,16 +67,12 @@ def is_bot_mentioned(message: dict) -> Tuple[bool, str, Optional[str]]:
     return is_mentioned, clean_text, None
 
 
-def get_ha_client() -> HomeAssistantClient:
-    global _ha_client
-    if _ha_client is None:
-        _ha_client = HomeAssistantClient()
-    return _ha_client
-
-
 async def process_conversation_async(text: str, language: Optional[str] = None) -> Dict[str, Any]:
-    client = get_ha_client()
-    return await client.process_conversation(text, language=language)
+    client = HomeAssistantClient()
+    try:
+        return await client.process_conversation(text, language=language)
+    finally:
+        await client.close()
 
 
 def _send_response(ws: WebSocketApp, group_id: str, message_id: Optional[str], response_text: str):
