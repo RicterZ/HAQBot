@@ -8,7 +8,6 @@ QQ Bot for controlling Home Assistant devices via natural language conversation
 - **Voice recognition support**: Automatically transcribes voice messages using Tencent Cloud ASR API
 - **Asynchronous processing**: Non-blocking message handling for better performance
 - **Context preservation**: Maintains conversation context per group for natural dialogue
-- **No @ required**: Bot responds to all messages in the group (no need to @ the bot)
 - Webhook endpoint for Home Assistant to send proactive notifications to QQ groups
 
 ## How It Works
@@ -17,7 +16,7 @@ QQ Bot for controlling Home Assistant devices via natural language conversation
 ```
 QQ Message → NapCat WebSocket → QQ Bot → HA Conversation API → Ollama Agent → Device Control
                 ↓                                                      ↓
-            Response ← QQ Reply ← HA Response ← Execution Result
+            Response   ←   QQ Reply    ←    HA Response   ←   Execution Result
 ```
 
 ### Voice Messages
