@@ -5,7 +5,7 @@ from pydantic import BaseModel
 
 from meteion.services.sender import send_group_message, send_group_multimodal_message
 from meteion.utils.logger import logger
-from meteion.utils.video import download_video_stream_async, convert_video_to_gif_async
+from meteion.utils.video import download_video_stream_async
 
 
 app = FastAPI(title="Home Assistant QQ Bot Webhook")
@@ -80,49 +80,23 @@ async def multimodal_notify(request: MultimodalWebhookRequest):
     
     file_path = None
     
-    video_path = None
-    file_path = None
-    
     if request.url:
         try:
             logger.info(f"Processing video stream from URL: {request.url}")
-            video_path = await download_video_stream_async(
+            file_path = await download_video_stream_async(
                 request.url,
                 duration=request.duration or 60
             )
             
-            if not video_path:
+            if not file_path:
                 raise HTTPException(
                     status_code=500,
                     detail="Failed to download video stream"
                 )
             
-            logger.info(f"Video stream downloaded to: {video_path}")
-            
-            logger.info(f"Converting video to GIF: {video_path}")
-            file_path = await convert_video_to_gif_async(video_path)
-            
-            if not file_path:
-                raise HTTPException(
-                    status_code=500,
-                    detail="Failed to convert video to GIF"
-                )
-            
-            logger.info(f"Video converted to GIF: {file_path}")
-            
-            if video_path and os.path.exists(video_path):
-                try:
-                    os.remove(video_path)
-                    logger.info(f"Cleaned up video file: {video_path}")
-                except Exception as e:
-                    logger.warning(f"Failed to cleanup video file {video_path}: {e}")
+            logger.info(f"Video stream downloaded to: {file_path}")
         except Exception as e:
             logger.error(f"Error processing video stream: {e}")
-            if video_path and os.path.exists(video_path):
-                try:
-                    os.remove(video_path)
-                except:
-                    pass
             if file_path and os.path.exists(file_path):
                 try:
                     os.remove(file_path)

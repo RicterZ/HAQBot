@@ -2,7 +2,7 @@ import json
 import os
 from typing import Optional, List
 
-from meteion.models.message import Command, CommandType, TextMessage, VideoMessage, ImageMessage, ForwardNode
+from meteion.models.message import Command, CommandType, TextMessage, VideoMessage, ImageMessage, FileMessage, ForwardNode
 from meteion.utils import CommandEncoder
 from meteion.utils.logger import logger
 from meteion.bot.connection import get_ws_connection
@@ -47,14 +47,14 @@ def send_group_multimodal_message(
     file_path: Optional[str] = None,
 ) -> bool:
     """
-    Send a multimodal message (text + image/video) to a QQ group as a forward message
+    Send a multimodal message (text + image/file) to a QQ group as a forward message
     Uses send_group_forward_msg API to create a card-like message
-    If file_path is a GIF, sends as image message. Otherwise sends as video message.
+    If file_path is a GIF, sends as image message. Otherwise sends as file message.
     
     Args:
         group_id: QQ group ID
         message: Optional message text
-        file_path: Optional image/video file path to send (GIF will be sent as image)
+        file_path: Optional image/video file path to send (GIF will be sent as image, video as file)
         
     Returns:
         True if message was sent successfully, False otherwise
@@ -97,13 +97,13 @@ def send_group_multimodal_message(
                 nodes.append(image_node)
                 logger.info(f"Sending GIF as image message: {file_path}")
             else:
-                video_node = ForwardNode(
+                file_node = ForwardNode(
                     user_id=user_id,
                     nickname=display_nickname,
-                    content=[VideoMessage(file_path)]
+                    content=[FileMessage(file_path)]
                 )
-                nodes.append(video_node)
-                logger.info(f"Sending video message: {file_path}")
+                nodes.append(file_node)
+                logger.info(f"Sending video as file message: {file_path}")
         
         time_node = ForwardNode(
             user_id=user_id,
