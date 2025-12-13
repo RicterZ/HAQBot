@@ -86,7 +86,7 @@ def send_group_multimodal_message(
             content=content
         )
         
-        message_text = message or "视频消息"
+        message_text = message or ""
         news = [{"text": message_text}]
         params = {
             "group_id": group_id,
