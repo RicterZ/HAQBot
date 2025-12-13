@@ -86,33 +86,23 @@ def send_group_multimodal_message(
         except ValueError:
             pass  # Keep as string
         
-        # Build message content array - ensure all messages are properly converted to dict
+        # Build message content array with message objects (not dicts)
+        # CommandEncoder will handle serialization
         content: List = []
         if text:
-            text_msg = TextMessage(text).as_dict()
-            content.append(text_msg)
-            logger.debug(f"Text message dict: {text_msg}")
+            content.append(TextMessage(text))
         if file_path:
-            video_msg = VideoMessage(file_path).as_dict()
-            content.append(video_msg)
-            logger.debug(f"Video message dict: {video_msg}")
+            content.append(VideoMessage(file_path))
         
         display_nickname = nickname or "Home Assistant"
         
-        # Create forward node with properly serialized content
-        # According to API: type="node", data={user_id, nickname, content}
-        node_data = {
-            "user_id": user_id,
-            "nickname": display_nickname,
-            "content": content
-        }
-        
-        node = {
-            "type": "node",
-            "data": node_data
-        }
-        
-        logger.debug(f"Forward node: {json.dumps(node, ensure_ascii=False, indent=2)}")
+        # Create forward node using ForwardNode class
+        # content contains message objects, ForwardNode.as_dict() will serialize them
+        node = ForwardNode(
+            user_id=user_id,
+            nickname=display_nickname,
+            content=content
+        )
         
         from datetime import datetime
         
@@ -141,26 +131,24 @@ def send_group_multimodal_message(
         if not source:
             source = "Home Assistant"
         
-        # Build params dict with all values properly serialized
+        # Build params dict - use node object, CommandEncoder will serialize it
         params = {
             "group_id": group_id,
-            "messages": [node],  # node is already a dict
+            "messages": [node],  # ForwardNode object, will be serialized by CommandEncoder
             "news": news,
             "prompt": prompt,
             "summary": summary,
             "source": source
         }
         
-        # Build the complete command structure directly as dict
-        # According to API: action, params={group_id, messages, news, prompt, summary, source}
-        command_dict = {
-            "action": CommandType.send_group_forward_msg.value,
-            "params": params,
-            "echo": str(uuid.uuid4())
-        }
+        # Use Command and CommandEncoder like the reference code
+        command = Command(
+            action=CommandType.send_group_forward_msg,
+            params=params
+        )
         
-        # Serialize to JSON
-        command_json = json.dumps(command_dict, ensure_ascii=False)
+        # Serialize using CommandEncoder (handles nested objects properly)
+        command_json = json.dumps(command, cls=CommandEncoder)
         logger.info(f"Forward message JSON: {command_json}")
         
         ws.send(command_json)
