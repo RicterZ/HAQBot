@@ -97,24 +97,7 @@ def send_group_multimodal_message(
         if file_path:
             content.append(VideoMessage(file_path))
         
-        # Create forward node - content contains message objects
-        node = ForwardNode(
-            user_id=user_id,
-            nickname=display_nickname,
-            content=content
-        )
-        
-        # Build news array for external display
-        news = []
-        if event:
-            news.append({"text": event})
-        if timestamp:
-            news.append({"text": timestamp})
-        elif event:
-            current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            news.append({"text": current_time})
-        
-        # Generate event and timestamp if not provided
+        # Generate event and timestamp if not provided (must be done before building news)
         if not event:
             if text:
                 event = text.split('\n')[0]
@@ -127,6 +110,20 @@ def send_group_multimodal_message(
         
         if not source:
             source = "Home Assistant"
+        
+        # Create forward node - content contains message objects
+        node = ForwardNode(
+            user_id=user_id,
+            nickname=display_nickname,
+            content=content
+        )
+        
+        # Build news array for external display (event and timestamp are now set)
+        news = []
+        if event:
+            news.append({"text": event})
+        if timestamp:
+            news.append({"text": timestamp})
         
         # Build params exactly like reference code
         params = {
