@@ -68,7 +68,6 @@ class VideoMessage(object):
 
     def __init__(self, file_path: str):
         if not file_path.startswith(("file://", "http://", "https://")):
-        if not file_path.startswith(("file://", "http://", "https://")):
             file_path = f"file://{file_path}"
         
         self.data = {

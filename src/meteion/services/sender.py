@@ -86,12 +86,13 @@ def send_group_multimodal_message(
             content=content
         )
         
-        news = [{"text": message}]
+        message_text = message or "视频消息"
+        news = [{"text": message_text}]
         params = {
             "group_id": group_id,
             "messages": [node],
             "news": news,
-            "prompt": message,
+            "prompt": message_text,
             "summary": timestamp,
             "source": source
         }
