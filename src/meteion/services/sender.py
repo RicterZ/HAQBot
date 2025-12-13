@@ -80,19 +80,26 @@ def send_group_multimodal_message(
     try:
         user_id = os.getenv('ACCOUNT', '1145141919')
         
+        # Build message content array - ensure all messages are properly converted to dict
         content: List = []
         if text:
-            content.append(TextMessage(text))
+            content.append(TextMessage(text).as_dict())
         if file_path:
-            content.append(VideoMessage(file_path))
+            content.append(VideoMessage(file_path).as_dict())
         
         display_nickname = nickname or "Home Assistant"
         
-        node = ForwardNode(
-            user_id=user_id,
-            nickname=display_nickname,
-            content=content
-        )
+        # Create forward node with properly serialized content
+        node_data = {
+            "user_id": user_id,
+            "nickname": display_nickname,
+            "content": content
+        }
+        
+        node = {
+            "type": "node",
+            "data": node_data
+        }
         
         from datetime import datetime
         
@@ -121,19 +128,26 @@ def send_group_multimodal_message(
         if not source:
             source = "Home Assistant"
         
+        # Build params dict with all values properly serialized
+        params = {
+            "group_id": group_id,
+            "messages": [node],  # node is already a dict
+            "news": news,
+            "prompt": prompt,
+            "summary": summary,
+            "source": source
+        }
+        
         command = Command(
             action=CommandType.send_group_forward_msg,
-            params={
-                "group_id": group_id,
-                "messages": [node.as_dict()],
-                "news": news,
-                "prompt": prompt,
-                "summary": summary,
-                "source": source
-            }
+            params=params
         )
         
-        ws.send(json.dumps(command, cls=CommandEncoder))
+        # Serialize command to JSON
+        command_json = json.dumps(command, cls=CommandEncoder)
+        logger.debug(f"Forward message JSON: {command_json}")
+        
+        ws.send(command_json)
         logger.info(f"Sent forward message to group {group_id}: text={text[:50] if text else None}, video={file_path}")
         return True
     except Exception as e:
