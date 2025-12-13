@@ -1,6 +1,7 @@
 import os
 import subprocess
 import tempfile
+import uuid
 from typing import Optional
 
 from meteion.utils.logger import logger
@@ -12,15 +13,19 @@ def download_video_stream(url: str, output_path: Optional[str] = None, duration:
     
     Args:
         url: Video stream URL
-        output_path: Optional output file path. If not provided, a temporary file will be created
+        output_path: Optional output file path. If not provided, will save to /data/napcat/videos/
         duration: Duration in seconds to record (default: 60 seconds)
         
     Returns:
         Path to the downloaded video file, or None if failed
     """
     if output_path is None:
-        temp_fd, output_path = tempfile.mkstemp(suffix='.mp4', prefix='video_')
-        os.close(temp_fd)
+        # Save to napcat videos directory
+        output_dir = '/data/napcat/videos'
+        os.makedirs(output_dir, exist_ok=True)
+        # Generate unique filename
+        filename = f"video_{uuid.uuid4().hex[:8]}.mp4"
+        output_path = os.path.join(output_dir, filename)
     
     try:
         cmd = [
@@ -91,7 +96,7 @@ async def download_video_stream_async(url: str, output_path: Optional[str] = Non
     
     Args:
         url: Video stream URL
-        output_path: Optional output file path. If not provided, a temporary file will be created
+        output_path: Optional output file path. If not provided, will save to /data/napcat/videos/
         duration: Duration in seconds to record (default: 60 seconds)
         
     Returns:
