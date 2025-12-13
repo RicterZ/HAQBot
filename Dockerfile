@@ -7,15 +7,16 @@ ENV PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
     POETRY_VERSION=1.7.1
 
+# Install build dependencies and poetry in one layer
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     curl \
-    && rm -rf /var/lib/apt/lists/*
-
-RUN pip install "poetry==${POETRY_VERSION}"
+    && rm -rf /var/lib/apt/lists/* \
+    && pip install "poetry==${POETRY_VERSION}"
 
 WORKDIR /build
 
+# Copy dependency files first for better cache utilization
 COPY pyproject.toml poetry.lock ./
 RUN poetry export -f requirements.txt --output requirements.txt && \
     pip wheel --no-deps --no-cache-dir --wheel-dir /wheels -r requirements.txt
@@ -27,21 +28,24 @@ ENV TZ=Asia/Shanghai \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONPATH=/app/src
 
-RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
-
+# Install system packages and set timezone in one layer
 RUN apt-get update && apt-get install -y --no-install-recommends \
     tzdata \
     curl \
     supervisor \
     ffmpeg \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
+# Install Python dependencies from builder stage
 COPY --from=builder /build/requirements.txt /tmp/requirements.txt
 RUN pip install --no-cache-dir -r /tmp/requirements.txt
 
 WORKDIR /app
 
+# Copy configuration files first (less likely to change)
 COPY supervisord.conf /etc/supervisor/conf.d/homeassistant-qq.conf
+# Copy source code last (most likely to change)
 COPY src/ src/
 COPY pyproject.toml poetry.lock ./
 
