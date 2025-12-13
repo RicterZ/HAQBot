@@ -74,6 +74,8 @@ def send_group_multimodal_message(
         user_id = os.getenv('ACCOUNT', '1145141919')
         display_nickname = "メイド"
         
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
+        
         nodes: List[ForwardNode] = []
         
         if message:
@@ -103,7 +105,12 @@ def send_group_multimodal_message(
                 nodes.append(video_node)
                 logger.info(f"Sending video message: {file_path}")
         
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
+        time_node = ForwardNode(
+            user_id=user_id,
+            nickname=display_nickname,
+            content=[TextMessage(timestamp)]
+        )
+        nodes.append(time_node)
         source = "メイド WARNING"
         
         message_text = message or ""
