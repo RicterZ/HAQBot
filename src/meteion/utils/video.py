@@ -25,6 +25,7 @@ def download_video_stream(url: str, output_path: Optional[str] = None, duration:
     try:
         cmd = [
             'ffmpeg',
+            '-extension_picky', '0',
             '-allowed_extensions', 'ALL',
             '-i', url,
             '-t', str(duration),
