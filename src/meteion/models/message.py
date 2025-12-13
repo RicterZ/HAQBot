@@ -67,12 +67,16 @@ class VideoMessage(object):
     data: dict | None = None
 
     def __init__(self, file_path: str):
-        if not file_path.startswith(("file://", "http://", "https://")):
-            file_path = f"file://{file_path}"
-        
-        self.data = {
-            "file": file_path
-        }
+        import os
+        if file_path.startswith(("http://", "https://")):
+            self.data = {
+                "file": file_path
+            }
+        else:
+            absolute_path = os.path.abspath(file_path)
+            self.data = {
+                "file": absolute_path
+            }
 
     def as_dict(self):
         return {"type": "video", "data": self.data}
