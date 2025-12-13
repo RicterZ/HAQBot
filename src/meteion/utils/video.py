@@ -25,11 +25,13 @@ def download_video_stream(url: str, output_path: Optional[str] = None, duration:
     
     try:
         # Use ffmpeg to download and convert the video stream
+        # -allowed_extensions ALL: allow all HLS segment extensions (needed for some streams)
         # -t: duration in seconds
         # -c copy: copy codec (faster, but may not work for all streams)
         # -y: overwrite output file
         cmd = [
             'ffmpeg',
+            '-allowed_extensions', 'ALL',
             '-i', url,
             '-t', str(duration),
             '-c', 'copy',
@@ -57,6 +59,7 @@ def download_video_stream(url: str, output_path: Optional[str] = None, duration:
             logger.info("Retrying with re-encoding...")
             cmd_reencode = [
                 'ffmpeg',
+                '-allowed_extensions', 'ALL',
                 '-i', url,
                 '-t', str(duration),
                 '-c:v', 'libx264',
