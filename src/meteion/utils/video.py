@@ -19,28 +19,21 @@ def download_video_stream(url: str, output_path: Optional[str] = None, duration:
         Path to the downloaded video file, or None if failed
     """
     if output_path is None:
-        # Create a temporary file
         temp_fd, output_path = tempfile.mkstemp(suffix='.mp4', prefix='video_')
         os.close(temp_fd)
     
     try:
-        # Use ffmpeg to download and convert the video stream
-        # -protocol_whitelist: allow HTTP/HTTPS protocols for HLS streams
-        # -allowed_extensions ALL: allow all HLS segment extensions (needed for fmp4 and other non-standard extensions)
-        # -t: duration in seconds
-        # -c copy: copy codec (faster, but may not work for all streams)
-        # -y: overwrite output file
         cmd = [
             'ffmpeg',
-            '-protocol_whitelist', 'file,http,https,tcp,tls,hls,crypto,crypto+https',
-            '-allowed_extensions', 'ALL',
             '-i', url,
             '-t', str(duration),
             '-c', 'copy',
+            '-f', 'mp4',
             '-y',
             output_path
         ]
         
+        logger.info(f"Command: {cmd}")
         logger.info(f"Downloading video stream from {url} using ffmpeg (max duration: {duration}s)...")
         result = subprocess.run(
             cmd,
@@ -49,15 +42,12 @@ def download_video_stream(url: str, output_path: Optional[str] = None, duration:
             timeout=duration + 30  # Add 30 seconds buffer
         )
         
-        # Check if output file exists and has content
         file_exists = os.path.exists(output_path) and os.path.getsize(output_path) > 0
         
         if result.returncode != 0:
             if file_exists:
-                # File exists even though returncode is non-zero, might be valid (e.g., stream ended early)
                 logger.info(f"ffmpeg exited with code {result.returncode}, but file was created successfully")
             else:
-                # Failed and no file created, return error
                 logger.error(f"ffmpeg exited with code {result.returncode}")
                 logger.error(f"ffmpeg stderr:\n{result.stderr}")
                 logger.error(f"ffmpeg stdout:\n{result.stdout}")
@@ -65,7 +55,6 @@ def download_video_stream(url: str, output_path: Optional[str] = None, duration:
                     os.remove(output_path)
                 return None
         
-        # Final check: ensure file exists and has content
         if not os.path.exists(output_path) or os.path.getsize(output_path) == 0:
             logger.error("Downloaded file is empty or does not exist")
             if os.path.exists(output_path):
