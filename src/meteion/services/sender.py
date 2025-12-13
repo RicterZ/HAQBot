@@ -3,7 +3,7 @@ from typing import Optional, List
 
 from websocket import WebSocketApp
 
-from meteion.models.message import Command, CommandType, TextMessage, FileMessage
+from meteion.models.message import Command, CommandType, TextMessage, VideoMessage
 from meteion.utils import CommandEncoder
 from meteion.utils.logger import logger
 from meteion.bot.connection import get_ws_connection
@@ -44,12 +44,12 @@ def send_group_message(group_id: str, message: str) -> bool:
 
 def send_group_multimodal_message(group_id: str, text: Optional[str] = None, file_path: Optional[str] = None) -> bool:
     """
-    Send a multimodal message (text + file) to a QQ group
+    Send a multimodal message (text + video) to a QQ group
     
     Args:
         group_id: QQ group ID
         text: Optional message text
-        file_path: Optional file path or URL to send
+        file_path: Optional video file path to send
         
     Returns:
         True if message was sent successfully, False otherwise
@@ -70,7 +70,7 @@ def send_group_multimodal_message(group_id: str, text: Optional[str] = None, fil
             message_segments.append(TextMessage(text))
         
         if file_path:
-            message_segments.append(FileMessage(file_path))
+            message_segments.append(VideoMessage(file_path))
         
         command = Command(
             action=CommandType.send_group_msg,
@@ -81,7 +81,7 @@ def send_group_multimodal_message(group_id: str, text: Optional[str] = None, fil
         )
         
         ws.send(json.dumps(command, cls=CommandEncoder))
-        logger.info(f"Sent multimodal message to group {group_id}: text={text[:50] if text else None}, file={file_path}")
+        logger.info(f"Sent multimodal message to group {group_id}: text={text[:50] if text else None}, video={file_path}")
         return True
     except Exception as e:
         logger.error(f"Failed to send multimodal message: {e}")

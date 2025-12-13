@@ -67,3 +67,25 @@ class FileMessage(object):
 
     def as_dict(self):
         return {"type": "file", "data": self.data}
+
+
+class VideoMessage(object):
+    data: dict | None = None
+
+    def __init__(self, file_path: str):
+        """
+        Create a video message
+        
+        Args:
+            file_path: Path to the video file (local path with file:// prefix or HTTP/HTTPS URL)
+        """
+        # If it's a local path and doesn't start with file:// or http://, add file:// prefix
+        if not file_path.startswith(("file://", "http://", "https://")):
+            file_path = f"file://{file_path}"
+        
+        self.data = {
+            "file": file_path
+        }
+
+    def as_dict(self):
+        return {"type": "video", "data": self.data}
