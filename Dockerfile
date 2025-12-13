@@ -35,6 +35,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     tzdata \
     curl \
     supervisor \
+    ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /build/requirements.txt /tmp/requirements.txt
