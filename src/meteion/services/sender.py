@@ -48,10 +48,6 @@ def send_group_multimodal_message(
     group_id: str, 
     text: Optional[str] = None, 
     file_path: Optional[str] = None,
-    event: Optional[str] = None,
-    timestamp: Optional[str] = None,
-    source: Optional[str] = None,
-    nickname: Optional[str] = None
 ) -> bool:
     """
     Send a multimodal message (text + video) to a QQ group as a forward message
@@ -88,28 +84,17 @@ def send_group_multimodal_message(
         except ValueError:
             pass
         
-        display_nickname = nickname or "Home Assistant"
+        display_nickname = "メイド"
         
-        # Build content array with message objects
         content: List = []
         if text:
             content.append(TextMessage(text))
         if file_path:
             content.append(VideoMessage(file_path))
         
-        # Generate event and timestamp if not provided (must be done before building news)
-        if not event:
-            if text:
-                event = text.split('\n')[0]
-                event = event[:30] + "..." if len(event) > 30 else event
-            else:
-                event = "视频消息"
-        
-        if not timestamp:
-            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        
-        if not source:
-            source = "Home Assistant"
+        # Generate timestamp
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
+        source = ""
         
         # Create forward node - content contains message objects
         node = ForwardNode(
@@ -118,30 +103,24 @@ def send_group_multimodal_message(
             content=content
         )
         
-        # Build news array for external display (event and timestamp are now set)
-        news = []
-        if event:
-            news.append({"text": event})
-        if timestamp:
-            news.append({"text": timestamp})
+        # Use text as message for news and prompt
+        message_text = text or "视频消息"
+        news = [{"text": message_text}]
         
-        # Build params exactly like reference code
         params = {
             "group_id": group_id,
             "messages": [node],
             "news": news,
-            "prompt": event,
+            "prompt": message_text,
             "summary": timestamp,
             "source": source
         }
         
-        # Use Command and CommandEncoder like reference code
         command = Command(
             action=CommandType.send_group_forward_msg,
             params=params
         )
         
-        # Serialize and send
         command_json = json.dumps(command, cls=CommandEncoder)
         logger.info(f"Forward message JSON: {command_json}")
         

@@ -23,11 +23,6 @@ class MultimodalWebhookRequest(BaseModel):
     url: Optional[str] = None
     token: Optional[str] = None
     duration: Optional[int] = 60  # Video stream duration in seconds
-    # Forward message display options
-    event: Optional[str] = None  # Event name/title (shown in prompt)
-    timestamp: Optional[str] = None  # Timestamp (shown in summary)
-    source: Optional[str] = None  # Source/title
-    nickname: Optional[str] = None  # Display nickname
 
 
 @app.post("/webhook/notify")
@@ -85,7 +80,6 @@ async def multimodal_notify(request: MultimodalWebhookRequest):
     
     file_path = None
     
-    # Process video stream if URL is provided
     if request.url:
         try:
             logger.info(f"Processing video stream from URL: {request.url}")
@@ -108,23 +102,15 @@ async def multimodal_notify(request: MultimodalWebhookRequest):
                 detail=f"Failed to process video stream: {str(e)}"
             )
     
-    # Send multimodal message
     success = send_group_multimodal_message(
         group_id=request.group_id,
         text=request.message,
-        file_path=file_path,
-        event=request.event,
-        timestamp=request.timestamp,
-        source=request.source,
-        nickname=request.nickname
+        file_path=file_path
     )
     
     if success:
-        # Clean up temporary file if it was created
         if file_path and os.path.exists(file_path):
             try:
-                # Note: We don't delete immediately as the file might still be in use
-                # In production, you might want to implement a cleanup job
                 pass
             except Exception as e:
                 logger.warning(f"Failed to cleanup temp file {file_path}: {e}")
