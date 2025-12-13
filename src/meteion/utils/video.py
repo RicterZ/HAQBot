@@ -25,6 +25,7 @@ def download_video_stream(url: str, output_path: Optional[str] = None, duration:
     try:
         cmd = [
             'ffmpeg',
+            '-allowed_extensions', 'ALL',
             '-i', url,
             '-t', str(duration),
             '-c', 'copy',
@@ -33,7 +34,7 @@ def download_video_stream(url: str, output_path: Optional[str] = None, duration:
             output_path
         ]
         
-        logger.info(f"Command: {cmd}")
+        logger.info(f"Command: {' '.join(cmd)}")
         logger.info(f"Downloading video stream from {url} using ffmpeg (max duration: {duration}s)...")
         result = subprocess.run(
             cmd,
