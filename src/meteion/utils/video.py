@@ -20,10 +20,8 @@ def download_video_stream(url: str, output_path: Optional[str] = None, duration:
         Path to the downloaded video file, or None if failed
     """
     if output_path is None:
-        # Save to napcat videos directory
         output_dir = '/data/napcat/videos'
         os.makedirs(output_dir, exist_ok=True)
-        # Generate unique filename
         filename = f"video_{uuid.uuid4().hex[:8]}.mp4"
         output_path = os.path.join(output_dir, filename)
     

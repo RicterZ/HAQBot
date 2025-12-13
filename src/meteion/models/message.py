@@ -53,13 +53,6 @@ class FileMessage(object):
     data: dict | None = None
 
     def __init__(self, file_path: str, name: str | None = None):
-        """
-        Create a file message
-        
-        Args:
-            file_path: Path to the file (can be local path or URL)
-            name: Optional file name
-        """
         self.data = {
             "file": file_path
         }
@@ -74,13 +67,7 @@ class VideoMessage(object):
     data: dict | None = None
 
     def __init__(self, file_path: str):
-        """
-        Create a video message
-        
-        Args:
-            file_path: Path to the video file (local path with file:// prefix or HTTP/HTTPS URL)
-        """
-        # If it's a local path and doesn't start with file:// or http://, add file:// prefix
+        if not file_path.startswith(("file://", "http://", "https://")):
         if not file_path.startswith(("file://", "http://", "https://")):
             file_path = f"file://{file_path}"
         
@@ -93,18 +80,7 @@ class VideoMessage(object):
 
 
 class ForwardNode(object):
-    """
-    Represents a node in a forward message
-    """
     def __init__(self, user_id: str | int, nickname: str, content: list):
-        """
-        Create a forward message node
-        
-        Args:
-            user_id: User ID (QQ number)
-            nickname: Display name
-            content: List of message objects (TextMessage, VideoMessage, etc.)
-        """
         self.data = {
             "user_id": user_id,
             "nickname": nickname,

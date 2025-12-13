@@ -1,9 +1,6 @@
 import json
 import os
-import uuid
 from typing import Optional, List
-
-from websocket import WebSocketApp
 
 from meteion.models.message import Command, CommandType, TextMessage, VideoMessage, ForwardNode
 from meteion.utils import CommandEncoder
@@ -77,13 +74,11 @@ def send_group_multimodal_message(
         display_nickname = "メイド"
         
         content: List = []
-        if message:
-            content.append(TextMessage(message))
         if file_path:
             content.append(VideoMessage(file_path))
         
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
-        source = ""
+        source = "メイド WARNING"
         
         node = ForwardNode(
             user_id=user_id,
@@ -92,7 +87,6 @@ def send_group_multimodal_message(
         )
         
         news = [{"text": message}]
-        
         params = {
             "group_id": group_id,
             "messages": [node],

@@ -109,19 +109,12 @@ async def multimodal_notify(request: MultimodalWebhookRequest):
     )
     
     if success:
-        if file_path and os.path.exists(file_path):
-            try:
-                pass
-            except Exception as e:
-                logger.warning(f"Failed to cleanup temp file {file_path}: {e}")
-        
         return {
             "status": "ok",
             "message": "Multimodal notification sent",
             "file_path": file_path
         }
     else:
-        # Clean up on failure
         if file_path and os.path.exists(file_path):
             try:
                 os.remove(file_path)
