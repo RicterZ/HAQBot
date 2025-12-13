@@ -46,7 +46,7 @@ def send_group_message(group_id: str, message: str) -> bool:
 
 def send_group_multimodal_message(
     group_id: str, 
-    text: Optional[str] = None, 
+    message: Optional[str] = None, 
     file_path: Optional[str] = None,
 ) -> bool:
     """
@@ -55,12 +55,8 @@ def send_group_multimodal_message(
     
     Args:
         group_id: QQ group ID
-        text: Optional message text
+        message: Optional message text
         file_path: Optional video file path to send
-        event: Optional event name/title (shown in prompt, auto-generated if not provided)
-        timestamp: Optional timestamp (shown in summary, auto-generated if not provided)
-        source: Optional title/source (default: "Home Assistant")
-        nickname: Optional display nickname (default: "Home Assistant")
         
     Returns:
         True if message was sent successfully, False otherwise
@@ -70,25 +66,19 @@ def send_group_multimodal_message(
         logger.error("WebSocket connection not available")
         return False
     
-    if not text and not file_path:
-        logger.error("At least one of text or file_path must be provided")
+    if not message and not file_path:
+        logger.error("At least one of message or file_path must be provided")
         return False
     
     try:
         from datetime import datetime
         
-        # Get user_id
         user_id = os.getenv('ACCOUNT', '1145141919')
-        try:
-            user_id = int(user_id)
-        except ValueError:
-            pass
-        
         display_nickname = "メイド"
         
         content: List = []
-        if text:
-            content.append(TextMessage(text))
+        if message:
+            content.append(TextMessage(message))
         if file_path:
             content.append(VideoMessage(file_path))
         
@@ -103,8 +93,8 @@ def send_group_multimodal_message(
             content=content
         )
         
-        # Use text as message for news and prompt
-        message_text = text or "视频消息"
+        # Use message for news and prompt
+        message_text = message or "视频消息"
         news = [{"text": message_text}]
         
         params = {
@@ -125,7 +115,7 @@ def send_group_multimodal_message(
         logger.info(f"Forward message JSON: {command_json}")
         
         ws.send(command_json)
-        logger.info(f"Sent forward message to group {group_id}: text={text[:50] if text else None}, video={file_path}")
+        logger.info(f"Sent forward message to group {group_id}: message={message[:50] if message else None}, video={file_path}")
         return True
     except Exception as e:
         logger.error(f"Failed to send forward message: {e}")

@@ -104,7 +104,7 @@ async def multimodal_notify(request: MultimodalWebhookRequest):
     
     success = send_group_multimodal_message(
         group_id=request.group_id,
-        text=request.message,
+        message=request.message,
         file_path=file_path
     )
     
