@@ -1,5 +1,6 @@
 import json
 import os
+import uuid
 from typing import Optional, List
 
 from websocket import WebSocketApp
@@ -79,17 +80,27 @@ def send_group_multimodal_message(
     
     try:
         user_id = os.getenv('ACCOUNT', '1145141919')
+        # Ensure user_id is string or number
+        try:
+            user_id = int(user_id)
+        except ValueError:
+            pass  # Keep as string
         
         # Build message content array - ensure all messages are properly converted to dict
         content: List = []
         if text:
-            content.append(TextMessage(text).as_dict())
+            text_msg = TextMessage(text).as_dict()
+            content.append(text_msg)
+            logger.debug(f"Text message dict: {text_msg}")
         if file_path:
-            content.append(VideoMessage(file_path).as_dict())
+            video_msg = VideoMessage(file_path).as_dict()
+            content.append(video_msg)
+            logger.debug(f"Video message dict: {video_msg}")
         
         display_nickname = nickname or "Home Assistant"
         
         # Create forward node with properly serialized content
+        # According to API: type="node", data={user_id, nickname, content}
         node_data = {
             "user_id": user_id,
             "nickname": display_nickname,
@@ -100,6 +111,8 @@ def send_group_multimodal_message(
             "type": "node",
             "data": node_data
         }
+        
+        logger.debug(f"Forward node: {json.dumps(node, ensure_ascii=False, indent=2)}")
         
         from datetime import datetime
         
@@ -138,14 +151,17 @@ def send_group_multimodal_message(
             "source": source
         }
         
-        command = Command(
-            action=CommandType.send_group_forward_msg,
-            params=params
-        )
+        # Build the complete command structure directly as dict
+        # According to API: action, params={group_id, messages, news, prompt, summary, source}
+        command_dict = {
+            "action": CommandType.send_group_forward_msg.value,
+            "params": params,
+            "echo": str(uuid.uuid4())
+        }
         
-        # Serialize command to JSON
-        command_json = json.dumps(command, cls=CommandEncoder)
-        logger.debug(f"Forward message JSON: {command_json}")
+        # Serialize to JSON
+        command_json = json.dumps(command_dict, ensure_ascii=False)
+        logger.info(f"Forward message JSON: {command_json}")
         
         ws.send(command_json)
         logger.info(f"Sent forward message to group {group_id}: text={text[:50] if text else None}, video={file_path}")
