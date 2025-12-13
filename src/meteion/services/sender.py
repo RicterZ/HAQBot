@@ -82,26 +82,22 @@ def send_group_multimodal_message(
         if file_path:
             content.append(VideoMessage(file_path))
         
-        # Generate timestamp
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
         source = ""
         
-        # Create forward node - content contains message objects
         node = ForwardNode(
             user_id=user_id,
             nickname=display_nickname,
             content=content
         )
         
-        # Use message for news and prompt
-        message_text = message or "视频消息"
-        news = [{"text": message_text}]
+        news = [{"text": message}]
         
         params = {
             "group_id": group_id,
             "messages": [node],
             "news": news,
-            "prompt": message_text,
+            "prompt": message,
             "summary": timestamp,
             "source": source
         }
