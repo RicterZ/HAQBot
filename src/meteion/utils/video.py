@@ -50,7 +50,9 @@ def download_video_stream(url: str, output_path: Optional[str] = None, duration:
         file_exists = os.path.exists(output_path) and os.path.getsize(output_path) > 0
         
         if result.returncode != 0 and not file_exists:
-            logger.warning(f"ffmpeg exited with code {result.returncode}, stderr: {result.stderr[:200]}")
+            logger.error(f"ffmpeg exited with code {result.returncode}")
+            logger.error(f"ffmpeg stderr:\n{result.stderr}")
+            logger.error(f"ffmpeg stdout:\n{result.stdout}")
             # Try with re-encoding if copy failed
             logger.info("Retrying with re-encoding...")
             cmd_reencode = [
@@ -73,7 +75,9 @@ def download_video_stream(url: str, output_path: Optional[str] = None, duration:
             file_exists = os.path.exists(output_path) and os.path.getsize(output_path) > 0
             
             if result.returncode != 0 and not file_exists:
-                logger.error(f"ffmpeg re-encoding also failed: {result.stderr[:200]}")
+                logger.error(f"ffmpeg re-encoding also failed with code {result.returncode}")
+                logger.error(f"ffmpeg stderr:\n{result.stderr}")
+                logger.error(f"ffmpeg stdout:\n{result.stdout}")
                 if os.path.exists(output_path):
                     os.remove(output_path)
                 return None
