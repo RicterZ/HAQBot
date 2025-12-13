@@ -5,6 +5,7 @@ from enum import Enum
 
 class CommandType(Enum):
     send_group_msg = "send_group_msg"
+    send_group_forward_msg = "send_group_forward_msg"
 
 
 class Command(object):
@@ -89,3 +90,26 @@ class VideoMessage(object):
 
     def as_dict(self):
         return {"type": "video", "data": self.data}
+
+
+class ForwardNode(object):
+    """
+    Represents a node in a forward message
+    """
+    def __init__(self, user_id: str | int, nickname: str, content: list):
+        """
+        Create a forward message node
+        
+        Args:
+            user_id: User ID (QQ number)
+            nickname: Display name
+            content: List of message objects (TextMessage, VideoMessage, etc.)
+        """
+        self.data = {
+            "user_id": user_id,
+            "nickname": nickname,
+            "content": [msg.as_dict() if hasattr(msg, 'as_dict') else msg for msg in content]
+        }
+    
+    def as_dict(self):
+        return {"type": "node", "data": self.data}

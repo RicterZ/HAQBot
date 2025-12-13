@@ -23,6 +23,11 @@ class MultimodalWebhookRequest(BaseModel):
     url: Optional[str] = None
     token: Optional[str] = None
     duration: Optional[int] = 60  # Video stream duration in seconds
+    # Forward message display options
+    event: Optional[str] = None  # Event name/title (shown in prompt)
+    timestamp: Optional[str] = None  # Timestamp (shown in summary)
+    source: Optional[str] = None  # Source/title
+    nickname: Optional[str] = None  # Display nickname
 
 
 @app.post("/webhook/notify")
@@ -107,7 +112,11 @@ async def multimodal_notify(request: MultimodalWebhookRequest):
     success = send_group_multimodal_message(
         group_id=request.group_id,
         text=request.message,
-        file_path=file_path
+        file_path=file_path,
+        event=request.event,
+        timestamp=request.timestamp,
+        source=request.source,
+        nickname=request.nickname
     )
     
     if success:
