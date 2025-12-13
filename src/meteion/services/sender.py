@@ -79,33 +79,32 @@ def send_group_multimodal_message(
         return False
     
     try:
+        from datetime import datetime
+        
+        # Get user_id
         user_id = os.getenv('ACCOUNT', '1145141919')
-        # Ensure user_id is string or number
         try:
             user_id = int(user_id)
         except ValueError:
-            pass  # Keep as string
+            pass
         
-        # Build message content array with message objects (not dicts)
-        # CommandEncoder will handle serialization
+        display_nickname = nickname or "Home Assistant"
+        
+        # Build content array with message objects
         content: List = []
         if text:
             content.append(TextMessage(text))
         if file_path:
             content.append(VideoMessage(file_path))
         
-        display_nickname = nickname or "Home Assistant"
-        
-        # Create forward node using ForwardNode class
-        # content contains message objects, ForwardNode.as_dict() will serialize them
+        # Create forward node - content contains message objects
         node = ForwardNode(
             user_id=user_id,
             nickname=display_nickname,
             content=content
         )
         
-        from datetime import datetime
-        
+        # Build news array for external display
         news = []
         if event:
             news.append({"text": event})
@@ -115,39 +114,37 @@ def send_group_multimodal_message(
             current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             news.append({"text": current_time})
         
+        # Generate event and timestamp if not provided
         if not event:
             if text:
-                # Use first line as event name
                 event = text.split('\n')[0]
                 event = event[:30] + "..." if len(event) > 30 else event
             else:
                 event = "视频消息"
-        prompt = event
         
         if not timestamp:
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        summary = timestamp
         
         if not source:
             source = "Home Assistant"
         
-        # Build params dict - use node object, CommandEncoder will serialize it
+        # Build params exactly like reference code
         params = {
             "group_id": group_id,
-            "messages": [node],  # ForwardNode object, will be serialized by CommandEncoder
+            "messages": [node],
             "news": news,
-            "prompt": prompt,
-            "summary": summary,
+            "prompt": event,
+            "summary": timestamp,
             "source": source
         }
         
-        # Use Command and CommandEncoder like the reference code
+        # Use Command and CommandEncoder like reference code
         command = Command(
             action=CommandType.send_group_forward_msg,
             params=params
         )
         
-        # Serialize using CommandEncoder (handles nested objects properly)
+        # Serialize and send
         command_json = json.dumps(command, cls=CommandEncoder)
         logger.info(f"Forward message JSON: {command_json}")
         
