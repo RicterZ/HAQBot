@@ -63,6 +63,25 @@ class FileMessage(object):
         return {"type": "file", "data": self.data}
 
 
+class ImageMessage(object):
+    data: dict | None = None
+
+    def __init__(self, file_path: str):
+        import os
+        if file_path.startswith(("http://", "https://")):
+            self.data = {
+                "file": file_path
+            }
+        else:
+            absolute_path = os.path.abspath(file_path)
+            self.data = {
+                "file": absolute_path
+            }
+
+    def as_dict(self):
+        return {"type": "image", "data": self.data}
+
+
 class VideoMessage(object):
     data: dict | None = None
 
