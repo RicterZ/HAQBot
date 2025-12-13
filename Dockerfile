@@ -29,8 +29,6 @@ ENV TZ=Asia/Shanghai \
 
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
-RUN groupadd -r app && useradd -r -g app app
-
 RUN apt-get update && apt-get install -y --no-install-recommends \
     tzdata \
     curl \
@@ -44,8 +42,8 @@ RUN pip install --no-cache-dir -r /tmp/requirements.txt
 WORKDIR /app
 
 COPY supervisord.conf /etc/supervisor/conf.d/homeassistant-qq.conf
-COPY --chown=app:app src/ src/
-COPY --chown=app:app pyproject.toml poetry.lock ./
+COPY src/ src/
+COPY pyproject.toml poetry.lock ./
 
 USER root
 
