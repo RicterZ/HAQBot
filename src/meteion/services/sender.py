@@ -74,32 +74,43 @@ def send_group_multimodal_message(
         user_id = os.getenv('ACCOUNT', '1145141919')
         display_nickname = "メイド"
         
-        content: List = []
+        nodes: List[ForwardNode] = []
+        
         if message:
-            content.append(TextMessage(message))
+            text_node = ForwardNode(
+                user_id=user_id,
+                nickname=display_nickname,
+                content=[TextMessage(message)]
+            )
+            nodes.append(text_node)
+        
         if file_path:
             file_ext = os.path.splitext(file_path)[1].lower()
             if file_ext == '.gif':
-                content.append(ImageMessage(file_path))
+                image_node = ForwardNode(
+                    user_id=user_id,
+                    nickname=display_nickname,
+                    content=[ImageMessage(file_path)]
+                )
+                nodes.append(image_node)
                 logger.info(f"Sending GIF as image message: {file_path}")
             else:
-                content.append(VideoMessage(file_path))
+                video_node = ForwardNode(
+                    user_id=user_id,
+                    nickname=display_nickname,
+                    content=[VideoMessage(file_path)]
+                )
+                nodes.append(video_node)
                 logger.info(f"Sending video message: {file_path}")
         
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
         source = "メイド WARNING"
         
-        node = ForwardNode(
-            user_id=user_id,
-            nickname=display_nickname,
-            content=content
-        )
-        
         message_text = message or ""
         news = [{"text": message_text}]
         params = {
             "group_id": group_id,
-            "messages": [node],
+            "messages": nodes,
             "news": news,
             "prompt": message_text,
             "summary": timestamp,
