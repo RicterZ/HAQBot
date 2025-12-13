@@ -32,7 +32,7 @@ def download_video_stream(url: str, output_path: Optional[str] = None, duration:
         # -y: overwrite output file
         cmd = [
             'ffmpeg',
-            '-protocol_whitelist', 'file,http,https,tcp,tls,hls',
+            '-protocol_whitelist', 'file,http,https,tcp,tls,hls,crypto,crypto+https',
             '-allowed_extensions', 'ALL',
             '-i', url,
             '-t', str(duration),
