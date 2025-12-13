@@ -105,9 +105,9 @@ The bot automatically recognizes voice messages using Tencent Cloud ASR:
 
 ## Webhook Notifications
 
-The bot provides a webhook endpoint that allows Home Assistant to send proactive notifications to QQ groups when certain events occur (e.g., washing machine finished, air conditioner turned on).
+The bot provides webhook endpoints that allow Home Assistant to send proactive notifications to QQ groups when certain events occur (e.g., washing machine finished, air conditioner turned on).
 
-### Webhook Endpoint
+### Text Notification Endpoint
 
 - **URL**: `http://homeassistant-qq:8080/webhook/notify`
 - **Method**: `POST`
@@ -128,6 +128,36 @@ The bot provides a webhook endpoint that allows Home Assistant to send proactive
 - `group_id` (required): QQ group ID to send the message to
 - `message` (required): Message text to send
 - `token` (optional): Webhook authentication token (if `WEBHOOK_TOKEN` is set)
+
+### Multimodal Notification Endpoint
+
+- **URL**: `http://homeassistant-qq:8080/webhook/multimodal`
+- **Method**: `POST`
+- **Content-Type**: `application/json`
+
+This endpoint supports sending text messages along with files (images, videos, etc.). Currently, it supports video stream URLs which will be downloaded using ffmpeg and sent as files.
+
+### Multimodal Request Body
+
+```json
+{
+  "group_id": "123456789",
+  "message": "Optional text message",
+  "url": "http://example.com/video_stream.m3u8",
+  "token": "optional_webhook_token",
+  "duration": 60
+}
+```
+
+### Multimodal Parameters
+
+- `group_id` (required): QQ group ID to send the message to
+- `message` (optional): Message text to send
+- `url` (optional): URL of the file/video stream to download and send
+- `token` (optional): Webhook authentication token (if `WEBHOOK_TOKEN` is set)
+- `duration` (optional): Duration in seconds to record video stream (default: 60)
+
+**Note**: At least one of `message` or `url` must be provided.
 
 ### Configuring REST Command
 
@@ -198,6 +228,44 @@ automation:
           message: "🧺 Washing machine finished! Clothes are ready to be taken out."
           token: "your_webhook_token_here"
 ```
+
+#### Example 3: Multimodal Notification with Video Stream
+
+Send a text message along with a video stream from a camera:
+
+```yaml
+rest_command:
+  homeassistant_qq_multimodal:
+    url: "http://homeassistant-qq:8080/webhook/multimodal"
+    method: POST
+    content_type: "application/json"
+    payload: |
+      {
+        "group_id": "123456789",
+        "message": "{{ message }}",
+        "url": "{{ video_url }}",
+        "token": "{{ token | default('') }}",
+        "duration": {{ duration | default(60) }}
+      }
+
+automation:
+  - alias: "Security Alert with Video"
+    trigger:
+      - platform: state
+        entity_id: binary_sensor.motion_sensor
+        to: "on"
+    action:
+      - service: rest_command.homeassistant_qq_multimodal
+        data:
+          message: "🚨 Motion detected in living room!"
+          video_url: "http://camera.local:8080/stream.m3u8"
+          duration: 30
+          token: "your_webhook_token_here"
+```
+
+This example will:
+1. Download 30 seconds of video from the camera stream
+2. Send the video file along with the text message to the QQ group
 
 ### Security
 

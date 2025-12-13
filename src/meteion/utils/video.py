@@ -37,7 +37,7 @@ def download_video_stream(url: str, output_path: Optional[str] = None, duration:
             output_path
         ]
         
-        logger.info(f"Downloading video stream from {url} using ffmpeg...")
+        logger.info(f"Downloading video stream from {url} using ffmpeg (max duration: {duration}s)...")
         result = subprocess.run(
             cmd,
             capture_output=True,
@@ -45,8 +45,12 @@ def download_video_stream(url: str, output_path: Optional[str] = None, duration:
             timeout=duration + 30  # Add 30 seconds buffer
         )
         
-        if result.returncode != 0:
-            logger.error(f"ffmpeg failed: {result.stderr}")
+        # Check if output file exists and has content, even if returncode is non-zero
+        # ffmpeg may exit with non-zero code for various reasons (stream end, etc.) but still produce valid output
+        file_exists = os.path.exists(output_path) and os.path.getsize(output_path) > 0
+        
+        if result.returncode != 0 and not file_exists:
+            logger.warning(f"ffmpeg exited with code {result.returncode}, stderr: {result.stderr[:200]}")
             # Try with re-encoding if copy failed
             logger.info("Retrying with re-encoding...")
             cmd_reencode = [
@@ -65,12 +69,23 @@ def download_video_stream(url: str, output_path: Optional[str] = None, duration:
                 timeout=duration + 60  # More time for re-encoding
             )
             
-            if result.returncode != 0:
-                logger.error(f"ffmpeg re-encoding also failed: {result.stderr}")
+            # Check again if file exists after re-encoding
+            file_exists = os.path.exists(output_path) and os.path.getsize(output_path) > 0
+            
+            if result.returncode != 0 and not file_exists:
+                logger.error(f"ffmpeg re-encoding also failed: {result.stderr[:200]}")
                 if os.path.exists(output_path):
                     os.remove(output_path)
                 return None
+            elif file_exists:
+                logger.info("Re-encoding succeeded, file created successfully")
+        elif file_exists:
+            # File exists, even if returncode is non-zero, it might be valid
+            # (e.g., stream ended early, which is normal)
+            if result.returncode != 0:
+                logger.info(f"Video stream ended early or ffmpeg exited with code {result.returncode}, but file was created successfully")
         
+        # Final check: ensure file exists and has content
         if not os.path.exists(output_path) or os.path.getsize(output_path) == 0:
             logger.error("Downloaded file is empty or does not exist")
             if os.path.exists(output_path):
@@ -78,6 +93,21 @@ def download_video_stream(url: str, output_path: Optional[str] = None, duration:
             return None
         
         file_size = os.path.getsize(output_path)
+        # Try to get actual video duration if possible (optional info)
+        actual_duration = None
+        try:
+            duration_check = subprocess.run(
+                ['ffprobe', '-v', 'error', '-show_entries', 'format=duration', '-of', 'default=noprint_wrappers=1:nokey=1', output_path],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+            if duration_check.returncode == 0 and duration_check.stdout.strip():
+                actual_duration = float(duration_check.stdout.strip())
+                logger.info(f"Video duration: {actual_duration:.2f}s (requested: {duration}s)")
+        except Exception:
+            pass  # ffprobe not available or failed, not critical
+        
         logger.info(f"Successfully downloaded video stream to {output_path} ({file_size} bytes)")
         return output_path
         
