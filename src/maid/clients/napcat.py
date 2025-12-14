@@ -7,7 +7,7 @@ from urllib.parse import urlparse
 import httpx
 from websocket import create_connection
 
-from meteion.utils.logger import logger
+from maid.utils.logger import logger
 
 
 async def get_voice_file(file: str, out_format: str = "mp3") -> bytes:

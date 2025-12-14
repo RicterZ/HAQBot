@@ -6,13 +6,13 @@ from typing import Optional, List, Dict
 
 from websocket import WebSocketApp
 
-from meteion.utils import CommandEncoder
-from meteion.utils.logger import logger
-from meteion.utils.i18n import t
-from meteion.models.message import Command, CommandType, TextMessage, ReplyMessage
-from meteion.handlers.conversation import conversation_handler, clear_conversation_context
-from meteion.bot.connection import set_ws_connection
-from meteion.clients.homeassistant import HomeAssistantClient
+from maid.utils import CommandEncoder
+from maid.utils.logger import logger
+from maid.utils.i18n import t
+from maid.models.message import Command, CommandType, TextMessage, ReplyMessage
+from maid.handlers.conversation import conversation_handler, clear_conversation_context
+from maid.bot.connection import set_ws_connection
+from maid.clients.homeassistant import HomeAssistantClient
 
 
 def echo_handler(ws: WebSocketApp, message: dict):
@@ -106,7 +106,13 @@ def _run_async_task(coro):
 
 
 def _parse_entity_ids(raw_message: str, command_prefix: str) -> List[str]:
-    """Parse entity IDs from command message"""
+    """Parse entity IDs from command message, supporting quoted names with spaces
+    
+    Examples:
+        /turnon light1 light2 -> ['light1', 'light2']
+        /turnon "Apple TV" light1 -> ['Apple TV', 'light1']
+        /turnon 'Living Room' -> ['Living Room']
+    """
     if not raw_message.startswith(command_prefix):
         return []
     
@@ -114,7 +120,40 @@ def _parse_entity_ids(raw_message: str, command_prefix: str) -> List[str]:
     if not args:
         return []
     
-    return [eid.strip() for eid in args.split() if eid.strip()]
+    entity_ids = []
+    current = ""
+    in_quotes = False
+    quote_char = None
+    
+    i = 0
+    while i < len(args):
+        char = args[i]
+        
+        if char in ['"', "'"]:
+            if not in_quotes:
+                in_quotes = True
+                quote_char = char
+            elif char == quote_char:
+                in_quotes = False
+                quote_char = None
+                if current.strip():
+                    entity_ids.append(current.strip())
+                    current = ""
+            else:
+                current += char
+        elif char == ' ' and not in_quotes:
+            if current.strip():
+                entity_ids.append(current.strip())
+                current = ""
+        else:
+            current += char
+        
+        i += 1
+    
+    if current.strip():
+        entity_ids.append(current.strip())
+    
+    return [eid for eid in entity_ids if eid]
 
 
 def _extract_domain(entity_id: str) -> str:
@@ -154,7 +193,7 @@ async def _control_switch_task(
                 
                 for alias_or_id in entity_ids:
                     try:
-                        from meteion.utils.entity_cache import find_entity_by_alias
+                        from maid.utils.entity_cache import find_entity_by_alias
                         entity_id, all_matches = find_entity_by_alias(alias_or_id)
                         if not entity_id:
                             errors.append((alias_or_id, t("entity_not_found")))
@@ -255,7 +294,7 @@ def toggle_handler(ws: WebSocketApp, message: dict):
 
 
 async def _info_task(ws: WebSocketApp, group_id: str, message_id: Optional[str]):
-    """Async task: get live context information using direct API calls"""
+    """Async task: get home context information - only important status"""
     try:
         client = HomeAssistantClient()
         try:
@@ -263,34 +302,60 @@ async def _info_task(ws: WebSocketApp, group_id: str, message_id: Optional[str])
             
             lines = []
             lines.append(t("context_info_header"))
-            lines.append(f"\n{t('total_entities')}: {context['total_entities']}")
             
-            if context["sensors"]:
-                lines.append(f"\n{t('sensors')}: {len(context['sensors'])}")
-                important_sensors = [s for s in context["sensors"][:5]]
-                for sensor in important_sensors:
-                    unit = sensor.get("unit", "")
-                    state_str = f"{sensor['state']} {unit}".strip()
-                    lines.append(f"  ‚Ä¢ {sensor['friendly_name']}: {state_str}")
-                if len(context["sensors"]) > 5:
-                    lines.append(t("more_sensors", count=len(context['sensors']) - 5))
-            
-            if context["switches"]:
-                on_count = sum(1 for s in context["switches"] if s["state"] == "on")
-                lines.append(f"\n{t('switches')}: {len(context['switches'])} ({t('on_count')}: {on_count})")
-            
-            if context["lights"]:
-                on_count = sum(1 for l in context["lights"] if l["state"] == "on")
-                lines.append(f"\n{t('lights')}: {len(context['lights'])} ({t('on_count')}: {on_count})")
+            if context["lights_on"]:
+                lines.append(f"\n{t('lights_on')}:")
+                for light in context["lights_on"]:
+                    brightness = light.get("brightness")
+                    if brightness:
+                        lines.append(f"  ‚Ä?{light['friendly_name']} ({brightness}%)")
+                    else:
+                        lines.append(f"  ‚Ä?{light['friendly_name']}")
             
             if context["climate"]:
-                lines.append(f"\n{t('climate')}: {len(context['climate'])}")
-                for climate in context["climate"][:3]:
-                    lines.append(f"  ‚Ä¢ {climate['friendly_name']}: {climate['state']}")
+                lines.append(f"\n{t('climate_devices')}:")
+                for climate in context["climate"]:
+                    parts = []
+                    if climate.get("current_temp"):
+                        parts.append(f"{t('current_temp')}: {climate['current_temp']}¬∞C")
+                    if climate.get("target_temp"):
+                        parts.append(f"{t('target_temp')}: {climate['target_temp']}¬∞C")
+                    if climate.get("hvac_mode"):
+                        parts.append(f"{t('mode')}: {climate['hvac_mode']}")
+                    if climate.get("fan_mode"):
+                        parts.append(f"{t('fan')}: {climate['fan_mode']}")
+                    
+                    status = " - ".join(parts) if parts else climate.get("hvac_mode", "")
+                    lines.append(f"  ‚Ä?{climate['friendly_name']}: {status}")
             
-            if context["binary_sensors"]:
-                on_count = sum(1 for bs in context["binary_sensors"] if bs["state"] == "on")
-                lines.append(f"\n{t('binary_sensors')}: {len(context['binary_sensors'])} ({t('on_count')}: {on_count})")
+            if context["temperature_sensors"]:
+                lines.append(f"\n{t('temperature')}:")
+                for temp in context["temperature_sensors"][:5]:
+                    lines.append(f"  ‚Ä?{temp['friendly_name']}: {temp['value']} {temp['unit']}")
+            
+            if context["humidity_sensors"]:
+                lines.append(f"\n{t('humidity')}:")
+                for humidity in context["humidity_sensors"][:5]:
+                    lines.append(f"  ‚Ä?{humidity['friendly_name']}: {humidity['value']} {humidity['unit']}")
+            
+            if context["important_binary_sensors"]:
+                lines.append(f"\n{t('important_status')}:")
+                for sensor in context["important_binary_sensors"]:
+                    device_class = sensor.get("device_class", "")
+                    icon_map = {
+                        "door": "üö™",
+                        "window": "ü™ü",
+                        "motion": "üëÅÔ∏?,
+                        "occupancy": "üè†",
+                        "smoke": "üî•",
+                        "gas": "‚ö†Ô∏è",
+                        "moisture": "üíß"
+                    }
+                    icon = icon_map.get(device_class, "‚Ä?)
+                    lines.append(f"  {icon} {sensor['friendly_name']}")
+            
+            if len(lines) == 1:
+                lines.append(f"\n{t('no_status_info')}")
             
             response_text = "\n".join(lines)
                 
@@ -322,34 +387,32 @@ async def _list_domain_task(
     message_id: Optional[str],
     domain: str
 ):
-    """Async task: list entities by domain, grouped by area"""
+    """Async task: list devices by domain, grouped by area"""
     try:
-        from meteion.utils.entity_cache import get_entities_by_domain, get_area_cache
+        from maid.utils.entity_cache import get_devices_by_domain, get_area_cache
         
-        entities_by_area = get_entities_by_domain(domain)
+        devices_by_area = get_devices_by_domain(domain)
         area_cache = get_area_cache() or {}
         
-        if not entities_by_area:
-            response_text = t("no_entities_found", domain=domain)
+        if not devices_by_area:
+            response_text = t("no_devices_found", domain=domain)
         else:
             lines = []
-            lines.append(t("entities_list_header", domain=domain))
+            lines.append(t("devices_list_header", domain=domain))
             
-            # Sort areas: None (ungrouped) last
-            sorted_areas = sorted(entities_by_area.items(), key=lambda x: (x[0] is None, x[0] or ""))
+            sorted_areas = sorted(devices_by_area.items(), key=lambda x: (x[0] is None, x[0] or ""))
             
-            for area_id, entities in sorted_areas:
+            for area_id, devices in sorted_areas:
                 if area_id:
                     area_name = area_cache.get(area_id, {}).get("name", area_id)
                     lines.append(f"\n{t('area')}: {area_name}")
                 else:
                     lines.append(f"\n{t('ungrouped')}")
                 
-                for entity in entities:
-                    entity_id = entity["entity_id"]
-                    friendly_name = entity["friendly_name"]
-                    state = entity["state"]
-                    lines.append(f"  ‚Ä¢ {friendly_name} ({entity_id}) - {state}")
+                for device in devices:
+                    device_name = device["device_name"]
+                    state_summary = device["state_summary"]
+                    lines.append(f"  ‚Ä?{device_name} - {state_summary}")
             
             response_text = "\n".join(lines)
         
@@ -383,44 +446,53 @@ def _get_commands_list() -> List[Dict[str, str]]:
     """Get list of all supported commands with descriptions
     
     Returns:
-        List of command dictionaries with 'command' and 'description' keys
+        List of command dictionaries with 'command', 'description', and 'emoji' keys
     """
     return [
         {
             "command": "/help",
-            "description": t("help_command_description")
-        },
-        {
-            "command": "/echo <text>",
-            "description": t("echo_command_description")
-        },
-        {
-            "command": "/clear",
-            "description": t("clear_command_description")
-        },
-        {
-            "command": "/turnon <entity_id> [<entity_id2> ...]",
-            "description": t("turnon_command_description")
-        },
-        {
-            "command": "/turnoff <entity_id> [<entity_id2> ...]",
-            "description": t("turnoff_command_description")
-        },
-        {
-            "command": "/toggle <entity_id> [<entity_id2> ...]",
-            "description": t("toggle_command_description")
+            "description": t("help_command_description"),
+            "emoji": "‚ù?
         },
         {
             "command": "/info",
-            "description": t("info_command_description")
+            "description": t("info_command_description"),
+            "emoji": "üè†"
+        },
+        {
+            "command": "/turnon <entity_id> [<entity_id2> ...]",
+            "description": t("turnon_command_description"),
+            "emoji": "üí°"
+        },
+        {
+            "command": "/turnoff <entity_id> [<entity_id2> ...]",
+            "description": t("turnoff_command_description"),
+            "emoji": "üîå"
+        },
+        {
+            "command": "/toggle <entity_id> [<entity_id2> ...]",
+            "description": t("toggle_command_description"),
+            "emoji": "üîÑ"
         },
         {
             "command": "/light",
-            "description": t("light_command_description")
+            "description": t("light_command_description"),
+            "emoji": "üí°"
         },
         {
             "command": "/switch",
-            "description": t("switch_command_description")
+            "description": t("switch_command_description"),
+            "emoji": "üîå"
+        },
+        {
+            "command": "/clear",
+            "description": t("clear_command_description"),
+            "emoji": "üóëÔ∏?
+        },
+        {
+            "command": "/echo <text>",
+            "description": t("echo_command_description"),
+            "emoji": "üì¢"
         },
     ]
 
@@ -434,12 +506,10 @@ def help_handler(ws: WebSocketApp, message: dict):
     
     lines = []
     lines.append(t("help_header"))
-    lines.append("")
     
     for cmd_info in commands:
-        lines.append(f"{cmd_info['command']}")
-        lines.append(f"  {cmd_info['description']}")
-        lines.append("")
+        emoji = cmd_info.get("emoji", "‚Ä?)
+        lines.append(f"{emoji} {cmd_info['command']} - {cmd_info['description']}")
     
     response_text = "\n".join(lines)
     _send_response(ws, group_id, message_id, response_text)
@@ -455,7 +525,7 @@ def on_open(ws):
     logger.info("WebSocket connection established")
     
     def load_cache():
-        from meteion.utils.entity_cache import load_entity_cache
+        from maid.utils.entity_cache import load_entity_cache
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         try:

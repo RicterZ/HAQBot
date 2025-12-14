@@ -3,7 +3,7 @@ import subprocess
 import uuid
 from typing import Optional
 
-from meteion.utils.logger import logger
+from maid.utils.logger import logger
 
 
 def download_video_stream(url: str, output_path: Optional[str] = None, duration: int = 60) -> Optional[str]:

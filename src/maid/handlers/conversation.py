@@ -6,13 +6,13 @@ from typing import Dict, Any, Optional, Tuple
 
 from websocket import WebSocketApp
 
-from meteion.clients.homeassistant import HomeAssistantClient
-from meteion.clients.napcat import get_voice_file
-from meteion.clients.tencent_asr import sentence_recognize
-from meteion.utils import CommandEncoder
-from meteion.utils.logger import logger
-from meteion.utils.i18n import t
-from meteion.models.message import Command, CommandType, TextMessage, ReplyMessage
+from maid.clients.homeassistant import HomeAssistantClient
+from maid.clients.napcat import get_voice_file
+from maid.clients.tencent_asr import sentence_recognize
+from maid.utils import CommandEncoder
+from maid.utils.logger import logger
+from maid.utils.i18n import t
+from maid.models.message import Command, CommandType, TextMessage, ReplyMessage
 
 
 _conversation_ids: Dict[str, Optional[str]] = {}

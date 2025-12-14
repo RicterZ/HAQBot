@@ -3,10 +3,10 @@ import os
 import rel
 import threading
 
-from meteion.bot.websocket import on_message, on_error, on_open
-from meteion.utils.logger import logger
-from meteion.utils.i18n import t
-from meteion.webhook.app import app
+from maid.bot.websocket import on_message, on_error, on_open
+from maid.utils.logger import logger
+from maid.utils.i18n import t
+from maid.webhook.app import app
 import uvicorn
 from dotenv import load_dotenv
 

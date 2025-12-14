@@ -117,7 +117,7 @@ Or run directly:
 
 ```bash
 poetry install
-poetry run python src/meteion/main.py
+poetry run python src/maid/main.py
 ```
 
 ## Usage
@@ -320,7 +320,7 @@ If `WEBHOOK_TOKEN` is set, include it in the `token` field of webhook requests t
 poetry install
 
 # Run locally
-poetry run python src/meteion/main.py
+poetry run python src/maid/main.py
 
 # Or use Docker
 docker-compose up -d

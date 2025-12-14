@@ -2,11 +2,11 @@ import json
 import os
 from typing import Optional, List
 
-from meteion.models.message import Command, CommandType, TextMessage, VideoMessage, FileMessage, ForwardNode
-from meteion.utils import CommandEncoder
-from meteion.utils.logger import logger
-from meteion.utils.i18n import t
-from meteion.bot.connection import get_ws_connection
+from maid.models.message import Command, CommandType, TextMessage, VideoMessage, FileMessage, ForwardNode
+from maid.utils import CommandEncoder
+from maid.utils.logger import logger
+from maid.utils.i18n import t
+from maid.bot.connection import get_ws_connection
 
 
 def send_group_message(group_id: str, message: str) -> bool:
@@ -72,7 +72,7 @@ def send_group_multimodal_message(
         from datetime import datetime
         
         user_id = os.getenv('ACCOUNT', '1145141919')
-        display_nickname = "メイド"
+        display_nickname = "メイ�?
         
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
         
@@ -101,7 +101,7 @@ def send_group_multimodal_message(
             content=[TextMessage(timestamp)]
         )
         nodes.append(time_node)
-        source = "メイド WARNING"
+        source = "メイ�?WARNING"
         
         message_text = message or ""
         news = [{"text": message_text}]

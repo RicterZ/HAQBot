@@ -2,7 +2,7 @@
 from typing import Optional, Dict, Any, List, Tuple
 from threading import Lock
 
-from meteion.utils.logger import logger
+from maid.utils.logger import logger
 
 # Global cache
 _entity_cache: Optional[List[Dict[str, Any]]] = None
@@ -23,7 +23,7 @@ async def load_entity_cache() -> bool:
     
     try:
         # Import here to avoid circular dependency
-        from meteion.clients.homeassistant import HomeAssistantClient
+        from maid.clients.homeassistant import HomeAssistantClient
         
         client = HomeAssistantClient()
         try:
@@ -124,20 +124,27 @@ def get_area_cache() -> Optional[Dict[str, Dict[str, Any]]]:
         return _area_cache
 
 
-def get_entities_by_domain(domain: str) -> Dict[Optional[str], List[Dict[str, Any]]]:
-    """Get entities filtered by domain, grouped by area
+def get_devices_by_domain(domain: str) -> Dict[Optional[str], List[Dict[str, Any]]]:
+    """Get devices filtered by domain, grouped by area
     
     Args:
         domain: Entity domain (e.g., 'light', 'switch')
     
     Returns:
-        Dictionary mapping area_id to list of entities
+        Dictionary mapping area_id to list of devices
     """
     cache = get_entity_cache()
+    device_cache = get_device_cache()
     if not cache:
         return {}
     
-    entities_by_area = {}
+    devices_by_area = {}
+    device_entities_map = {}
+    device_name_map = {}
+    
+    if device_cache:
+        for device in device_cache:
+            device_name_map[device.get("id")] = device.get("name", "")
     
     for state in cache:
         entity_id = state.get("entity_id", "")
@@ -145,21 +152,49 @@ def get_entities_by_domain(domain: str) -> Dict[Optional[str], List[Dict[str, An
             continue
         
         attributes = state.get("attributes", {})
+        device_id = attributes.get("device_id")
         area_id = attributes.get("area_id")
-        friendly_name = attributes.get("friendly_name", "") or entity_id
+        entity_state = state.get("state", "")
         
+        if not device_id:
+            device_id = f"virtual_{entity_id}"
+        
+        if device_id not in device_entities_map:
+            device_name = (
+                device_name_map.get(device_id) or
+                attributes.get("device_name") or
+                attributes.get("friendly_name") or
+                entity_id.split(".")[-1]
+            )
+            device_entities_map[device_id] = {
+                "device_id": device_id,
+                "device_name": device_name,
+                "area_id": area_id,
+                "entities": [],
+                "states": []
+            }
+        
+        device_entities_map[device_id]["entities"].append(entity_id)
+        device_entities_map[device_id]["states"].append(entity_state)
+    
+    for device_id, device_info in device_entities_map.items():
+        area_id = device_info["area_id"]
         area_key = area_id if area_id else None
         
-        if area_key not in entities_by_area:
-            entities_by_area[area_key] = []
+        if area_key not in devices_by_area:
+            devices_by_area[area_key] = []
         
-        entities_by_area[area_key].append({
-            "entity_id": entity_id,
-            "friendly_name": friendly_name,
-            "state": state.get("state", "")
+        on_count = sum(1 for s in device_info["states"] if s.lower() == "on")
+        total_count = len(device_info["states"])
+        state_summary = f"{on_count}/{total_count}" if total_count > 1 else device_info["states"][0] if device_info["states"] else "unknown"
+        
+        devices_by_area[area_key].append({
+            "device_name": device_info["device_name"],
+            "state_summary": state_summary,
+            "entity_count": total_count
         })
     
-    return entities_by_area
+    return devices_by_area
 
 
 def is_cache_initialized() -> bool:

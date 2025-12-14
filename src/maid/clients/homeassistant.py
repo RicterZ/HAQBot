@@ -4,7 +4,7 @@ from typing import Optional, Dict, Any, List
 
 import httpx
 
-from meteion.utils.logger import logger
+from maid.utils.logger import logger
 
 
 class HomeAssistantClient:
@@ -239,24 +239,20 @@ class HomeAssistantClient:
             raise
 
     async def get_context_info(self) -> Dict[str, Any]:
-        """Get context information directly from API without using conversation
+        """Get home context information - only important home status
         
         Returns:
-            Dictionary containing context information
+            Dictionary containing home context information
         """
         try:
-            # Get all states
             states = await self.get_states()
             
-            # Categorize entities
             context = {
-                "total_entities": len(states),
-                "sensors": [],
-                "switches": [],
-                "lights": [],
+                "lights_on": [],
                 "climate": [],
-                "binary_sensors": [],
-                "other": []
+                "temperature_sensors": [],
+                "humidity_sensors": [],
+                "important_binary_sensors": []
             }
             
             for state in states:
@@ -267,30 +263,56 @@ class HomeAssistantClient:
                 domain = entity_id.split(".")[0] if "." in entity_id else "unknown"
                 attributes = state.get("attributes", {})
                 friendly_name = attributes.get("friendly_name", "") or entity_id
-                entity_state = state.get("state", "")
+                entity_state = state.get("state", "").lower()
                 
-                entity_info = {
-                    "entity_id": entity_id,
-                    "friendly_name": friendly_name,
-                    "state": entity_state
-                }
+                if domain == "light" and entity_state == "on":
+                    brightness = attributes.get("brightness")
+                    brightness_pct = round((brightness / 255) * 100) if brightness else None
+                    context["lights_on"].append({
+                        "friendly_name": friendly_name,
+                        "brightness": brightness_pct
+                    })
                 
-                if domain == "sensor":
-                    # Add unit if available
-                    unit = attributes.get("unit_of_measurement", "")
-                    if unit:
-                        entity_info["unit"] = unit
-                    context["sensors"].append(entity_info)
-                elif domain == "switch":
-                    context["switches"].append(entity_info)
-                elif domain == "light":
-                    context["lights"].append(entity_info)
                 elif domain == "climate":
-                    context["climate"].append(entity_info)
+                    current_temp = attributes.get("current_temperature")
+                    target_temp = attributes.get("temperature")
+                    hvac_mode = attributes.get("hvac_mode", entity_state)
+                    fan_mode = attributes.get("fan_mode")
+                    
+                    context["climate"].append({
+                        "friendly_name": friendly_name,
+                        "hvac_mode": hvac_mode,
+                        "current_temp": current_temp,
+                        "target_temp": target_temp,
+                        "fan_mode": fan_mode
+                    })
+                
+                elif domain == "sensor":
+                    unit = attributes.get("unit_of_measurement", "")
+                    device_class = attributes.get("device_class", "")
+                    
+                    if device_class == "temperature" or "temperature" in entity_id.lower():
+                        context["temperature_sensors"].append({
+                            "friendly_name": friendly_name,
+                            "value": entity_state,
+                            "unit": unit or "°C"
+                        })
+                    elif device_class == "humidity" or "humidity" in entity_id.lower():
+                        context["humidity_sensors"].append({
+                            "friendly_name": friendly_name,
+                            "value": entity_state,
+                            "unit": unit or "%"
+                        })
+                
                 elif domain == "binary_sensor":
-                    context["binary_sensors"].append(entity_info)
-                else:
-                    context["other"].append(entity_info)
+                    device_class = attributes.get("device_class", "")
+                    if device_class in ["door", "window", "motion", "occupancy", "smoke", "gas", "moisture"]:
+                        if entity_state == "on":
+                            context["important_binary_sensors"].append({
+                                "friendly_name": friendly_name,
+                                "device_class": device_class,
+                                "state": entity_state
+                            })
             
             return context
         except Exception as e:
@@ -308,7 +330,7 @@ class HomeAssistantClient:
         Returns:
             Entity ID if found, None otherwise
         """
-        from meteion.utils.entity_cache import find_entity_by_alias as cache_find
+        from maid.utils.entity_cache import find_entity_by_alias as cache_find
         
         # Use cached lookup
         return cache_find(alias)

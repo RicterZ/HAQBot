@@ -9,7 +9,7 @@ from typing import Optional
 
 import httpx
 
-from meteion.utils.logger import logger
+from maid.utils.logger import logger
 
 
 def _hmac_sha256(key: bytes, msg: str) -> bytes:
@@ -60,7 +60,7 @@ def _build_tc3_headers(body: bytes, timestamp: int, secret_id: str, secret_key: 
         "X-TC-Action": "SentenceRecognition",
         "X-TC-Version": "2019-06-14",
         "X-TC-Timestamp": str(timestamp),
-        "X-TC-RequestClient": "meteion",
+        "X-TC-RequestClient": "maid",
     }
     if region:
         headers["X-TC-Region"] = region

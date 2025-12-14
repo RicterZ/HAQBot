@@ -117,7 +117,7 @@ docker-compose up -d
 
 ```bash
 poetry install
-poetry run python src/meteion/main.py
+poetry run python src/maid/main.py
 ```
 
 ## 使用方法
@@ -321,7 +321,7 @@ automation:
 poetry install
 
 # 本地运行
-poetry run python src/meteion/main.py
+poetry run python src/maid/main.py
 
 # 或使用 Docker
 docker-compose up -d
