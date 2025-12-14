@@ -304,12 +304,12 @@ async def _info_task(ws: WebSocketApp, group_id: str, message_id: Optional[str])
             
             if context["temperature_sensors"]:
                 lines.append(f"\n{t('temperature')}:")
-                for temp in context["temperature_sensors"][:5]:
+                for temp in context["temperature_sensors"]:
                     lines.append(f"  •{temp['friendly_name']}: {temp['value']} {temp['unit']}")
             
             if context["humidity_sensors"]:
                 lines.append(f"\n{t('humidity')}:")
-                for humidity in context["humidity_sensors"][:5]:
+                for humidity in context["humidity_sensors"]:
                     lines.append(f"  •{humidity['friendly_name']}: {humidity['value']} {humidity['unit']}")
             
             if context["important_binary_sensors"]:
@@ -483,12 +483,11 @@ def _get_commands_list() -> List[Dict[str, str]]:
     ]
 
 
-def _search_entities(query: str, limit: int = 20) -> List[Dict[str, str]]:
+def _search_entities(query: str) -> List[Dict[str, str]]:
     """Search entities by fuzzy matching on entity_id, friendly_name, and aliases
     
     Args:
         query: Search query string
-        limit: Maximum number of results to return
     
     Returns:
         List of matching entities with entity_id and friendly_name
@@ -501,11 +500,17 @@ def _search_entities(query: str, limit: int = 20) -> List[Dict[str, str]]:
     
     query_lower = query.lower()
     matches = []
+    seen_entities = set()  # Avoid duplicates
     
     for state in cache:
         entity_id = state.get("entity_id", "")
+        if entity_id in seen_entities:
+            continue
+        
         attributes = state.get("attributes", {})
         friendly_name = attributes.get("friendly_name", "") or entity_id
+        
+        matched = False
         
         # Check if query matches entity_id (case-insensitive, partial match)
         if query_lower in entity_id.lower():
@@ -513,38 +518,46 @@ def _search_entities(query: str, limit: int = 20) -> List[Dict[str, str]]:
                 "entity_id": entity_id,
                 "friendly_name": friendly_name
             })
+            seen_entities.add(entity_id)
+            matched = True
             continue
         
         # Check if query matches friendly_name (case-insensitive, partial match)
-        if friendly_name and query_lower in friendly_name.lower():
+        if not matched and friendly_name and query_lower in friendly_name.lower():
             matches.append({
                 "entity_id": entity_id,
                 "friendly_name": friendly_name
             })
+            seen_entities.add(entity_id)
+            matched = True
             continue
         
         # Check if query matches any alias
-        for attr_key, attr_value in attributes.items():
-            if attr_key in ["aliases", "alias", "device_aliases"]:
-                if isinstance(attr_value, list):
-                    for alias in attr_value:
-                        if isinstance(alias, str) and query_lower in alias.lower():
-                            matches.append({
-                                "entity_id": entity_id,
-                                "friendly_name": friendly_name
-                            })
-                            break
-                elif isinstance(attr_value, str) and query_lower in attr_value.lower():
-                    matches.append({
-                        "entity_id": entity_id,
-                        "friendly_name": friendly_name
-                    })
+        if not matched:
+            for attr_key, attr_value in attributes.items():
+                if attr_key in ["aliases", "alias", "device_aliases"]:
+                    if isinstance(attr_value, list):
+                        for alias in attr_value:
+                            if isinstance(alias, str) and query_lower in alias.lower():
+                                matches.append({
+                                    "entity_id": entity_id,
+                                    "friendly_name": friendly_name
+                                })
+                                seen_entities.add(entity_id)
+                                matched = True
+                                break
+                    elif isinstance(attr_value, str) and query_lower in attr_value.lower():
+                        matches.append({
+                            "entity_id": entity_id,
+                            "friendly_name": friendly_name
+                        })
+                        seen_entities.add(entity_id)
+                        matched = True
+                        break
+                if matched:
                     break
-        
-        if len(matches) >= limit:
-            break
     
-    return matches[:limit]
+    return matches
 
 
 def search_handler(ws: WebSocketApp, message: dict):
@@ -566,7 +579,7 @@ def search_handler(ws: WebSocketApp, message: dict):
         return
     
     # Search entities
-    matches = _search_entities(query, limit=20)
+    matches = _search_entities(query)
     
     if not matches:
         response_text = t("search_no_results", query=query)
@@ -575,9 +588,6 @@ def search_handler(ws: WebSocketApp, message: dict):
         lines.append(t("search_results_header", query=query, count=len(matches)))
         for match in matches:
             lines.append(f"  • {match['friendly_name']} ({match['entity_id']})")
-        
-        if len(matches) == 20:
-            lines.append(f"\n{t('search_results_truncated')}")
         
         response_text = "\n".join(lines)
     
