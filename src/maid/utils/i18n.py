@@ -13,7 +13,7 @@ _TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "turn_off": "关闭",
         "toggle": "切换",
         "action_failed": "{action}失败:\n{errors}",
-        "success_action_count": "成功{action}�?{count} 个实体。\n错误:\n{errors}",
+        "success_action_count": "成功{action}了{count} 个实体。\n错误:\n{errors}",
         "success_action": "成功{action}: {entity_list}",
         "error_executing_action": "执行{action}时出错: {error}",
         "error_processing_command": "处理命令时出错: {error}",
