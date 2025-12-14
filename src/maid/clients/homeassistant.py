@@ -322,6 +322,8 @@ class HomeAssistantClient:
                 "climate": [],
                 "temperature_sensors": [],
                 "humidity_sensors": [],
+                "air_quality_sensors": [],
+                "weather": [],
                 "important_binary_sensors": []
             }
             
@@ -373,6 +375,25 @@ class HomeAssistantClient:
                             "value": entity_state,
                             "unit": unit or "%"
                         })
+                    elif device_class in ["aqi", "pm25", "pm10", "co2", "co", "no2", "o3"] or "air_quality" in entity_id.lower() or "aqi" in entity_id.lower():
+                        context["air_quality_sensors"].append({
+                            "friendly_name": friendly_name,
+                            "value": entity_state,
+                            "unit": unit or "",
+                            "device_class": device_class
+                        })
+                
+                elif domain == "weather":
+                    temperature = attributes.get("temperature")
+                    condition = attributes.get("condition", entity_state)
+                    humidity = attributes.get("humidity")
+                    
+                    context["weather"].append({
+                        "friendly_name": friendly_name,
+                        "temperature": temperature,
+                        "condition": condition,
+                        "humidity": humidity
+                    })
                 
                 elif domain == "binary_sensor":
                     device_class = attributes.get("device_class", "")

@@ -312,6 +312,28 @@ async def _info_task(ws: WebSocketApp, group_id: str, message_id: Optional[str])
                 for humidity in context["humidity_sensors"]:
                     lines.append(f"  •{humidity['friendly_name']}: {humidity['value']} {humidity['unit']}")
             
+            if context["air_quality_sensors"]:
+                lines.append(f"\n{t('air_quality')}:")
+                for aq in context["air_quality_sensors"]:
+                    unit = aq.get("unit", "")
+                    if unit:
+                        lines.append(f"  •{aq['friendly_name']}: {aq['value']} {unit}")
+                    else:
+                        lines.append(f"  •{aq['friendly_name']}: {aq['value']}")
+            
+            if context["weather"]:
+                lines.append(f"\n{t('weather')}:")
+                for weather in context["weather"]:
+                    parts = []
+                    if weather.get("condition"):
+                        parts.append(weather["condition"])
+                    if weather.get("temperature") is not None:
+                        parts.append(f"{t('temperature')}: {weather['temperature']}°C")
+                    if weather.get("humidity") is not None:
+                        parts.append(f"{t('humidity')}: {weather['humidity']}%")
+                    status = " - ".join(parts) if parts else weather.get("condition", "")
+                    lines.append(f"  •{weather['friendly_name']}: {status}")
+            
             if context["important_binary_sensors"]:
                 lines.append(f"\n{t('important_status')}:")
                 for sensor in context["important_binary_sensors"]:
