@@ -3,7 +3,7 @@ from typing import Optional
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
-from maid.services.sender import send_group_message, send_group_multimodal_message
+from maid.bot.sender import send_group_message, send_group_multimodal_message
 from maid.utils.logger import logger
 from maid.utils.i18n import t
 from maid.utils.video import download_video_stream_async

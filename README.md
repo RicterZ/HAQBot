@@ -126,7 +126,7 @@ The bot supports direct commands for faster device control without LLM processin
 #### Device Control Commands
 
 - `/turnon <entity_id> [<entity_id2> ...]` - Turn on device(s)
-  - Supports entity ID (e.g., `light.living_room`), friendly name, or alias
+  - Supports entity ID (e.g., `light.living_room`) or friendly name
   - Can control multiple devices at once
   - Example: `/turnon 客厅灯` or `/turnon light.living_room light.bedroom`
   - Supports quoted names with spaces: `/turnon "Apple TV"`
@@ -142,7 +142,7 @@ The bot supports direct commands for faster device control without LLM processin
   - Example: `/script my_script` or `/script script.my_script`
 
 - `/climate <entity_id> [mode] [temp]` - Control climate device
-  - Supports entity ID, friendly name, or alias (same as other commands)
+  - Supports entity ID or friendly name (same as other commands)
   - Set mode: `cool`/`heat`/`fan_only`/`off` (or 制冷/制热/通风/关闭 in Chinese)
   - Set temperature: specify number or use `temp <number>`
   - Supports quoted names with spaces: `/climate "Living Room AC" cool 26`
@@ -150,7 +150,7 @@ The bot supports direct commands for faster device control without LLM processin
     - `/climate living_room_ac cool 26` - Set to cool mode at 26°C
     - `/climate 客厅空调 制冷 26` - Set to cool mode at 26°C (Chinese, using friendly name)
     - `/climate "Living Room AC" temp 25` - Set temperature to 25°C only (quoted name)
-    - `/climate my_ac_alias off` - Turn off climate device (using alias)
+    - `/climate living_room_ac off` - Turn off climate device
 
 #### Information Commands
 
@@ -165,22 +165,21 @@ The bot supports direct commands for faster device control without LLM processin
   - Same as `/light` but for switches
 
 - `/search <query>` - Fuzzy search entities
-  - Search entities by entity ID, friendly name, or alias (case-insensitive partial match)
+  - Search entities by entity ID or friendly name (case-insensitive partial match)
   - Returns matching entities with their entity ID and friendly name
   - Example: `/search 灯` or `/search light`
 
 - `/refresh` - Refresh entity cache
-  - Reloads entities, devices, areas, and aliases from Home Assistant
-  - Useful after adding new entities or updating aliases
+  - Reloads entities, devices, and areas from Home Assistant
+  - Useful after adding new entities
 
 - `/help` - Show all supported commands and descriptions
 
 #### Command Features
 
-- **Entity Lookup**: Commands support three ways to identify devices:
+- **Entity Lookup**: Commands support two ways to identify devices:
   1. Entity ID: `light.living_room`
   2. Friendly Name: `客厅灯`
-  3. Alias: Any alias configured in Home Assistant
 
 - **Multiple Devices**: Control multiple devices in one command by separating them with spaces
 
@@ -188,7 +187,7 @@ The bot supports direct commands for faster device control without LLM processin
 
 - **Permission Control**: If `ALLOWED_SENDERS` is set, only specified QQ users can use control commands. 
 
-- **Duplicate Alias Warning**: If multiple entities share the same alias, the bot will warn you but still control the first match
+- **Duplicate Name Warning**: If multiple entities share the same friendly name, the bot will warn you but still control the first match
 
 ---
 

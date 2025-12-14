@@ -7,13 +7,6 @@ import httpx
 
 from maid.utils.logger import logger
 
-# Try to import websockets (should be available via uvicorn standard extra)
-try:
-    import websockets
-    WEBSOCKETS_AVAILABLE = True
-except ImportError:
-    WEBSOCKETS_AVAILABLE = False
-    logger.warning("websockets library not available")
 
 
 class HomeAssistantClient:
@@ -122,43 +115,6 @@ class HomeAssistantClient:
             logger.error(f"Error calling HA service: {e}")
             raise
 
-    async def get_live_context(
-        self,
-        agent_id: Optional[str] = None
-    ) -> Dict[str, Any]:
-        """Get live context information (GetLiveContext)
-        
-        Args:
-            agent_id: Conversation agent ID (optional, defaults to configured agent_id)
-        """
-        if agent_id is None:
-            agent_id = self.agent_id
-        
-        url = "/api/conversation/process"
-        payload = {
-            "text": "GetLiveContext",
-            "agent_id": agent_id,
-        }
-        
-        try:
-            logger.info(f"Requesting live context from HA agent: {agent_id}")
-            logger.debug(f"GetLiveContext payload: {json.dumps(payload, ensure_ascii=False, indent=2)}")
-            
-            response = await self.client.post(url, json=payload)
-            response.raise_for_status()
-            
-            result = response.json()
-            logger.info(f"Received live context (status: {response.status_code})")
-            logger.debug(f"Live context response: {json.dumps(result, ensure_ascii=False, indent=2)}")
-            
-            return result
-        except httpx.HTTPStatusError as e:
-            logger.error(f"HA GetLiveContext request failed: {e.response.status_code} - {e.response.text}")
-            raise
-        except Exception as e:
-            logger.error(f"Error getting live context: {e}")
-            raise
-
     async def get_states(self) -> List[Dict[str, Any]]:
         """Get all entity states from Home Assistant
         
@@ -184,102 +140,6 @@ class HomeAssistantClient:
             logger.error(f"Error getting states: {e}")
             raise
 
-    async def get_devices(self) -> List[Dict[str, Any]]:
-        """Get all devices from Home Assistant
-        
-        Returns:
-            List of device dictionaries
-        """
-        url = "/api/config/device_registry/list"
-        
-        try:
-            logger.debug("Fetching all devices from HA")
-            
-            response = await self.client.get(url)
-            response.raise_for_status()
-            
-            devices = response.json()
-            logger.debug(f"Received {len(devices)} devices")
-            
-            # Log sample device structure for debugging
-            if devices and logger.isEnabledFor(logging.DEBUG):
-                sample = devices[0]
-                logger.debug(f"Sample device structure: {list(sample.keys())}")
-                if "area_id" in sample:
-                    logger.debug(f"Sample device area_id: {sample.get('area_id')}")
-            
-            return devices
-        except httpx.HTTPStatusError as e:
-            if e.response.status_code == 404:
-                logger.debug("Device registry API not available, will extract from states")
-                return []
-            logger.error(f"HA get_devices request failed: {e.response.status_code} - {e.response.text}")
-            raise
-        except Exception as e:
-            logger.error(f"Error getting devices: {e}")
-            raise
-
-    async def get_entity_aliases(self) -> Dict[str, List[str]]:
-        """Get aliases for all entities using entity registry API
-        
-        Returns:
-            Dictionary mapping entity_id to list of aliases
-        """
-        # Try entity registry API first
-        url = "/api/config/entity_registry/list"
-        
-        try:
-            logger.debug("Fetching entity aliases using entity registry API")
-            
-            response = await self.client.get(url)
-            response.raise_for_status()
-            
-            result = response.json()
-            logger.debug(f"Entity registry API response type: {type(result)}")
-            
-            # Entity registry API returns a list of entity objects
-            if not isinstance(result, list):
-                logger.warning(f"Unexpected entity registry API response format: {type(result)}")
-                return {}
-            
-            logger.debug(f"Entity registry API returned {len(result)} entities")
-            
-            # Convert list to dict for easier lookup
-            entity_aliases = {}
-            entities_with_aliases = 0
-            
-            for entity_info in result:
-                entity_id = entity_info.get("entity_id")
-                aliases = entity_info.get("aliases", [])
-                
-                if entity_id:
-                    if isinstance(aliases, list) and aliases:
-                        # Filter out empty strings
-                        valid_aliases = [str(a) for a in aliases if a and str(a).strip()]
-                        if valid_aliases:
-                            entity_aliases[entity_id] = valid_aliases
-                            entities_with_aliases += 1
-                            logger.debug(f"Entity {entity_id} has aliases: {valid_aliases}")
-                        else:
-                            entity_aliases[entity_id] = []
-                    else:
-                        entity_aliases[entity_id] = []
-            
-            logger.info(f"Entity aliases: {entities_with_aliases}/{len(result)} entities have aliases")
-            if entities_with_aliases > 0:
-                # Log a few sample entities with aliases
-                sample_entities = [(eid, aliases) for eid, aliases in entity_aliases.items() if aliases][:3]
-                logger.debug(f"Sample entities with aliases: {sample_entities}")
-            return entity_aliases
-        except httpx.HTTPStatusError as e:
-            logger.error(f"HA entity registry API request failed: {e.response.status_code} - {e.response.text}")
-            logger.warning("Cannot get entity aliases from API. Template API cannot access aliases. Returning empty dict.")
-            return {}
-        except Exception as e:
-            logger.warning(f"Error getting entity aliases from registry API: {e}")
-            logger.warning("Cannot get entity aliases from API. Template API cannot access aliases. Returning empty dict.")
-            return {}
-
     async def get_entity_areas(self) -> Dict[str, str]:
         """Get area information for all entities using template API
         
@@ -301,8 +161,6 @@ class HomeAssistantClient:
         url = "/api/template"
         
         try:
-            logger.debug("Fetching entity area information using template API")
-            
             response = await self.client.post(url, json={"template": template})
             response.raise_for_status()
             
@@ -310,22 +168,14 @@ class HomeAssistantClient:
             entities = result.get("entities", [])
             logger.info(f"Received area information for {len(entities)} entities")
             
-            # Convert list to dict for easier lookup
             entity_areas = {}
-            entities_with_area = 0
             for entity in entities:
                 entity_id = entity.get("entity_id")
-                area_name = entity.get("area", "")
                 if entity_id:
-                    entity_areas[entity_id] = area_name
-                    if area_name:
-                        entities_with_area += 1
+                    entity_areas[entity_id] = entity.get("area", "")
             
+            entities_with_area = sum(1 for area in entity_areas.values() if area)
             logger.info(f"Entity areas: {entities_with_area}/{len(entities)} entities have area")
-            if entity_areas:
-                # Log a few sample entity IDs to verify format
-                sample_ids = list(entity_areas.keys())[:5]
-                logger.debug(f"Sample entity IDs with areas: {sample_ids}")
             return entity_areas
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 404:
@@ -335,46 +185,6 @@ class HomeAssistantClient:
             raise
         except Exception as e:
             logger.error(f"Error getting entity areas: {e}")
-            raise
-
-    async def get_areas(self) -> Dict[str, Dict[str, Any]]:
-        """Get all areas from Home Assistant
-        
-        Returns:
-            Dictionary mapping area_id to area information
-        """
-        url = "/api/config/area_registry/list"
-        
-        try:
-            logger.debug("Fetching all areas from HA")
-            
-            response = await self.client.get(url)
-            response.raise_for_status()
-            
-            areas = response.json()
-            logger.debug(f"Received {len(areas)} areas")
-            
-            # Convert list to dict for easier lookup
-            # Store both string and original format for compatibility
-            areas_dict = {}
-            for area in areas:
-                area_id = area.get("area_id")
-                if area_id:
-                    # Store with string key for consistent lookup
-                    areas_dict[str(area_id)] = area
-                    # Also store with original key if it's different
-                    if str(area_id) != area_id:
-                        areas_dict[area_id] = area
-            
-            return areas_dict
-        except httpx.HTTPStatusError as e:
-            if e.response.status_code == 404:
-                logger.debug("Area registry API not available")
-                return {}
-            logger.error(f"HA get_areas request failed: {e.response.status_code} - {e.response.text}")
-            raise
-        except Exception as e:
-            logger.error(f"Error getting areas: {e}")
             raise
 
     def _is_device_temperature_sensor(self, entity_id: str, device_id: Optional[str], friendly_name: str, all_states: List[Dict[str, Any]]) -> bool:
@@ -389,16 +199,11 @@ class HomeAssistantClient:
         Returns:
             True if this is a device temperature sensor, False if ambient
         """
-        # Keywords that indicate device temperature (not ambient)
         device_keywords = [
-            # Chinese keywords
             "插座", "电源", "设备温度", "设备", "电暖器", "加热器", "开关",
-            # English keywords
             "outlet", "socket", "plug", "power", "device temperature", "device temp",
             "heater", "switch", "thermostat", "climate"
         ]
-        
-        # Check entity ID and friendly name for device keywords
         entity_id_lower = entity_id.lower()
         friendly_name_lower = friendly_name.lower()
         
@@ -420,10 +225,7 @@ class HomeAssistantClient:
                         return True
                 break
         
-        # Device types that typically have device temperature sensors
         device_control_domains = ["climate", "switch", "light", "fan", "heater", "thermostat"]
-        
-        # Check if any entity in the same device is a control device
         for state in all_states:
             other_entity_id = state.get("entity_id", "")
             if not other_entity_id or other_entity_id == entity_id:
@@ -592,167 +394,6 @@ class HomeAssistantClient:
         except Exception as e:
             logger.error(f"Error getting context info: {e}")
             raise
-
-    async def find_entity_by_alias(self, alias: str) -> Optional[str]:
-        """Find entity ID by alias (friendly_name or entity_id)
-        
-        This method now uses the cached entity list for better performance.
-        
-        Args:
-            alias: Alias name or entity ID to search for
-        
-        Returns:
-            Entity ID if found, None otherwise
-        """
-        from maid.utils.entity_cache import find_entity_by_alias as cache_find
-        
-        # Use cached lookup
-        return cache_find(alias)
-
-    async def get_entity_aliases_via_websocket(self) -> Dict[str, List[str]]:
-        """Test function: Get aliases for all entities using WebSocket API
-        
-        This is a test function to verify if WebSocket API can access entity registry aliases.
-        Based on the reference implementation using asyncws.
-        
-        Returns:
-            Dictionary mapping entity_id to list of aliases
-        """
-        if not WEBSOCKETS_AVAILABLE:
-            logger.error("websockets library not available, cannot use WebSocket API")
-            return {}
-        
-        # Convert HTTP URL to WebSocket URL
-        ws_url = self.base_url.replace("http://", "ws://").replace("https://", "wss://") + "/api/websocket"
-        
-        logger.info(f"Testing WebSocket connection to: {ws_url}")
-        
-        try:
-            async with websockets.connect(ws_url) as ws:
-                # Step 1: Receive auth_required message
-                msg = await ws.recv()
-                auth_msg = json.loads(msg)
-                logger.debug(f"Received message: {auth_msg}")
-                
-                if auth_msg.get("type") != "auth_required":
-                    logger.error(f"Unexpected message type: {auth_msg.get('type')}")
-                    return {}
-                
-                # Step 2: Send auth message
-                auth_request = {
-                    "type": "auth",
-                    "access_token": self.token
-                }
-                await ws.send(json.dumps(auth_request))
-                logger.debug("Sent auth request")
-                
-                # Step 3: Receive auth_ok message
-                msg = await ws.recv()
-                auth_response = json.loads(msg)
-                logger.debug(f"Auth response: {auth_response}")
-                
-                if auth_response.get("type") != "auth_ok":
-                    logger.error(f"Auth failed: {auth_response}")
-                    return {}
-                
-                logger.info("WebSocket authentication successful")
-                
-                # Step 4: Get device registry
-                tran_num = 10
-                device_request = {
-                    "id": tran_num,
-                    "type": "config/device_registry/list"
-                }
-                await ws.send(json.dumps(device_request))
-                logger.debug(f"Sent device registry request (id={tran_num})")
-                
-                msg = await ws.recv()
-                device_response = json.loads(msg)
-                logger.debug(f"Device registry response: {device_response.get('success')}")
-                
-                if not device_response.get("success"):
-                    logger.error(f"Device registry request failed: {device_response}")
-                    return {}
-                
-                device_registry = device_response.get("result", [])
-                logger.info(f"Received {len(device_registry)} devices from device registry")
-                
-                # Step 5: Get entity registry
-                tran_num += 1
-                entity_request = {
-                    "id": tran_num,
-                    "type": "config/entity_registry/list"
-                }
-                await ws.send(json.dumps(entity_request))
-                logger.debug(f"Sent entity registry request (id={tran_num})")
-                
-                msg = await ws.recv()
-                entity_response = json.loads(msg)
-                logger.debug(f"Entity registry response: {entity_response.get('success')}")
-                
-                if not entity_response.get("success"):
-                    logger.error(f"Entity registry request failed: {entity_response}")
-                    return {}
-                
-                entity_registry = entity_response.get("result", [])
-                logger.info(f"Received {len(entity_registry)} entities from entity registry")
-                
-                # Step 6: Extract aliases from entity registry
-                entity_aliases = {}
-                entities_with_aliases = 0
-                
-                for entity in entity_registry:
-                    entity_id = entity.get("entity_id")
-                    if not entity_id:
-                        continue
-                    
-                    # Check if entity has aliases in the registry
-                    aliases = entity.get("aliases", [])
-                    if isinstance(aliases, list) and aliases:
-                        valid_aliases = [str(a) for a in aliases if a and str(a).strip()]
-                        if valid_aliases:
-                            entity_aliases[entity_id] = valid_aliases
-                            entities_with_aliases += 1
-                            logger.debug(f"Entity {entity_id} has aliases: {valid_aliases}")
-                    else:
-                        entity_aliases[entity_id] = []
-                
-                logger.info(f"WebSocket test: Found {entities_with_aliases}/{len(entity_registry)} entities with aliases")
-                
-                # Log sample entities with aliases
-                if entities_with_aliases > 0:
-                    sample_entities = [(eid, aliases) for eid, aliases in entity_aliases.items() if aliases][:5]
-                    logger.info(f"Sample entities with aliases: {sample_entities}")
-                
-                # Step 7: Test getting detailed entity info for a few entities with aliases
-                # This is similar to the reference implementation
-                test_count = 0
-                for entity_id, aliases in list(entity_aliases.items())[:3]:
-                    if aliases:
-                        tran_num += 1
-                        detail_request = {
-                            "id": tran_num,
-                            "type": "config/entity_registry/get",
-                            "entity_id": entity_id
-                        }
-                        await ws.send(json.dumps(detail_request))
-                        logger.debug(f"Sent entity detail request for {entity_id} (id={tran_num})")
-                        
-                        msg = await ws.recv()
-                        detail_response = json.loads(msg)
-                        if detail_response.get("success"):
-                            entity_details = detail_response.get("result", {})
-                            detail_aliases = entity_details.get("aliases", [])
-                            logger.info(f"Entity {entity_id} detail aliases: {detail_aliases}")
-                            test_count += 1
-                
-                logger.info(f"WebSocket test: Successfully retrieved detailed info for {test_count} entities")
-                
-                return entity_aliases
-                
-        except Exception as e:
-            logger.error(f"Error in WebSocket test: {e}", exc_info=True)
-            return {}
 
     async def close(self):
         await self.client.aclose()

@@ -9,10 +9,8 @@ from maid.utils.i18n import t
 _entity_cache: Optional[List[Dict[str, Any]]] = None
 _device_cache: Optional[List[Dict[str, Any]]] = None
 _area_cache: Optional[Dict[str, Dict[str, Any]]] = None
-_entity_areas_cache: Optional[Dict[str, str]] = None  # entity_id -> area_name
-_entity_aliases_cache: Optional[Dict[str, List[str]]] = None  # entity_id -> list of aliases
+_entity_areas_cache: Optional[Dict[str, str]] = None
 _cache_lock = Lock()
-_cache_initialized = False
 
 
 async def load_entity_cache() -> bool:
@@ -21,7 +19,7 @@ async def load_entity_cache() -> bool:
     Returns:
         True if cache loaded successfully, False otherwise
     """
-    global _entity_cache, _device_cache, _area_cache, _entity_areas_cache, _entity_aliases_cache, _cache_initialized
+    global _entity_cache, _device_cache, _area_cache, _entity_areas_cache
     
     try:
         # Import here to avoid circular dependency
@@ -31,19 +29,8 @@ async def load_entity_cache() -> bool:
         try:
             logger.info("Loading entity, device and area cache from Home Assistant...")
             states = await client.get_states()
-            
-            devices = []
-            try:
-                devices = await client.get_devices()
-            except Exception as dev_error:
-                logger.debug(f"Failed to get devices from API, extracting from states: {dev_error}")
-                devices = _extract_devices_from_states(states)
-            
+            devices = _extract_devices_from_states(states)
             areas = {}
-            try:
-                areas = await client.get_areas()
-            except Exception as area_error:
-                logger.debug(f"Failed to get areas from API: {area_error}")
             
             entity_areas = {}
             try:
@@ -56,43 +43,13 @@ async def load_entity_cache() -> bool:
                 logger.warning(f"Failed to get entity areas: {area_error}")
                 logger.warning("Entity area information is required for area grouping. Devices will be shown as ungrouped.")
             
-            entity_aliases = {}
-            try:
-                entity_aliases = await client.get_entity_aliases()
-                logger.info(f"Loaded alias information for {len(entity_aliases)} entities")
-                if entity_aliases:
-                    entities_with_aliases = sum(1 for aliases in entity_aliases.values() if aliases)
-                    logger.info(f"Entity aliases: {entities_with_aliases}/{len(entity_aliases)} entities have aliases")
-            except Exception as alias_error:
-                logger.warning(f"Failed to get entity aliases: {alias_error}")
-            
-            # Test WebSocket API for getting aliases
-            logger.info("=" * 60)
-            logger.info("Testing WebSocket API for entity aliases...")
-            try:
-                ws_aliases = await client.get_entity_aliases_via_websocket()
-                logger.info(f"WebSocket test completed: {len(ws_aliases)} entities processed")
-                if ws_aliases:
-                    ws_entities_with_aliases = sum(1 for aliases in ws_aliases.values() if aliases)
-                    logger.info(f"WebSocket test: {ws_entities_with_aliases}/{len(ws_aliases)} entities have aliases")
-            except Exception as ws_error:
-                logger.warning(f"WebSocket test failed: {ws_error}", exc_info=True)
-            logger.info("=" * 60)
-            
             with _cache_lock:
                 _entity_cache = states
                 _device_cache = devices
                 _area_cache = areas
                 _entity_areas_cache = entity_areas
-                _entity_aliases_cache = entity_aliases
-                _cache_initialized = True
             
             logger.info(f"Entity cache loaded: {len(states)} entities, {len(devices)} devices, {len(areas)} areas")
-            
-            # Log device area_id statistics for debugging
-            if devices:
-                devices_with_area = sum(1 for d in devices if d.get("area_id"))
-                logger.info(f"Devices with area_id: {devices_with_area}/{len(devices)}")
             
             return True
         finally:
@@ -177,16 +134,6 @@ def get_entity_areas_cache() -> Optional[Dict[str, str]]:
         return _entity_areas_cache
 
 
-def get_entity_aliases_cache() -> Optional[Dict[str, List[str]]]:
-    """Get cached entity aliases (entity_id -> list of aliases)
-    
-    Returns:
-        Cached entity aliases dictionary or None if not initialized
-    """
-    with _cache_lock:
-        return _entity_aliases_cache
-
-
 def get_devices_by_domain(domain: str) -> Dict[Optional[str], List[Dict[str, Any]]]:
     """Get devices filtered by domain, grouped by area
     
@@ -202,31 +149,17 @@ def get_devices_by_domain(domain: str) -> Dict[Optional[str], List[Dict[str, Any
     if not cache:
         return {}
     
-    # Log entity areas status for debugging
-    if not entity_areas:
-        logger.warning("Entity areas cache is empty or not loaded")
-    else:
-        logger.debug(f"Using entity areas cache with {len(entity_areas)} entities")
-    
     devices_by_area = {}
     device_entities_map = {}
     device_name_map = {}
     device_area_map = {}
     
-    # Build device name and area_id maps from device_cache
     if device_cache:
         for device in device_cache:
             device_id = device.get("id")
             if device_id:
                 device_name_map[device_id] = device.get("name", "")
-                # area_id is stored in device object
-                # Home Assistant device registry returns area_id directly
-                area_id = device.get("area_id")
-                device_area_map[device_id] = area_id
-                if area_id:
-                    logger.debug(f"Device {device_id} ({device.get('name', '')}) has area_id: {area_id}")
-                else:
-                    logger.debug(f"Device {device_id} ({device.get('name', '')}) has no area_id")
+                device_area_map[device_id] = device.get("area_id")
     
     for state in cache:
         entity_id = state.get("entity_id", "")
@@ -241,29 +174,19 @@ def get_devices_by_domain(domain: str) -> Dict[Optional[str], List[Dict[str, Any
             device_id = f"virtual_{entity_id}"
         
         if device_id not in device_entities_map:
-            # Get area_name from entity_areas cache (from template API)
             area_name = entity_areas.get(entity_id, "")
-            
-            # Convert area_name to area_id by looking up in area_cache
             area_id = None
             if area_name:
-                # Find area_id by matching area name in area_cache
                 area_cache = get_area_cache() or {}
                 for cached_area_id, area_info in area_cache.items():
                     if isinstance(area_info, dict) and area_info.get("name") == area_name:
                         area_id = cached_area_id
                         break
-                
-                # If not found in cache, use area_name as area_id (fallback)
                 if not area_id:
                     area_id = area_name
-                    logger.debug(f"Using area_name '{area_name}' as area_id for entity {entity_id}")
             
-            # Fallback: try to get from device_cache
             if not area_id:
                 area_id = device_area_map.get(device_id)
-            
-            # Fallback: try to get from entity attributes
             if not area_id:
                 area_id = attributes.get("area_id") or attributes.get("area") or attributes.get("room")
             
@@ -280,19 +203,13 @@ def get_devices_by_domain(domain: str) -> Dict[Optional[str], List[Dict[str, Any
                 "entities": [],
                 "states": []
             }
-            if not area_id:
-                logger.debug(f"Device {device_id} ({device_name}) has no area_id")
         
         device_entities_map[device_id]["entities"].append(entity_id)
         device_entities_map[device_id]["states"].append(entity_state)
     
     for device_id, device_info in device_entities_map.items():
         area_id = device_info["area_id"]
-        # Normalize area_id to string for consistent lookup
-        if area_id is not None:
-            area_key = str(area_id)
-        else:
-            area_key = None
+        area_key = str(area_id) if area_id is not None else None
         
         if area_key not in devices_by_area:
             devices_by_area[area_key] = []
@@ -303,7 +220,6 @@ def get_devices_by_domain(domain: str) -> Dict[Optional[str], List[Dict[str, Any
             state_summary = f"{on_count}/{total_count}"
         else:
             state = device_info["states"][0] if device_info["states"] else "unknown"
-            # Translate state value
             state_lower = state.lower()
             if state_lower == "on":
                 state_summary = t("state_on")
@@ -321,72 +237,25 @@ def get_devices_by_domain(domain: str) -> Dict[Optional[str], List[Dict[str, Any
     return devices_by_area
 
 
-def is_cache_initialized() -> bool:
-    """Check if cache is initialized"""
-    with _cache_lock:
-        return _cache_initialized
-
-
-def get_all_entities() -> List[Dict[str, Any]]:
-    """Get all entities with formatted information
-    
-    Returns:
-        List of formatted entity dictionaries
-    """
-    cache = get_entity_cache()
-    if not cache:
-        return []
-    
-    # Entity areas cache not needed for get_all_entities
-    
-    entities = []
-    for state in cache:
-        entity_id = state.get("entity_id", "")
-        attributes = state.get("attributes", {})
-        friendly_name = attributes.get("friendly_name", "")
-        domain = entity_id.split(".")[0] if "." in entity_id else ""
-        
-        # Note: aliases cannot be extracted from entity attributes via template API
-        # They need to be fetched via entity registry API
-        
-        entities.append({
-            "entity_id": entity_id,
-            "domain": domain,
-            "friendly_name": friendly_name or entity_id,
-            "aliases": [],  # Aliases cannot be obtained from template API
-            "state": state.get("state", ""),
-        })
-    
-    return entities
-
-
-def find_entity_by_alias(alias: str) -> Tuple[Optional[str], List[str]]:
-    """Find entity ID by alias using cached entities
-    
-    Supports two methods:
-    1. entity_id: If input contains '.', treat as entity_id directly
-    2. friendly_name: Match against entity's friendly_name attribute
-    
-    Note: Entity registry aliases cannot be obtained via template API and are not supported here.
-    They need to be fetched via entity registry API.
+def find_entity_by_name(name: str) -> Tuple[Optional[str], List[str]]:
+    """Find entity ID by friendly_name or entity_id using cached entities
     
     Args:
-        alias: Alias name or entity ID to search for
+        name: Friendly name or entity ID to search for
     
     Returns:
         Tuple of (first matching entity_id, list of all matching entity_ids)
     """
-    # Method 1: If it looks like an entity ID (contains dot), return as-is
-    if '.' in alias:
-        logger.debug(f"Treating '{alias}' as entity_id")
-        return alias, [alias]
+    if '.' in name:
+        logger.debug(f"Treating '{name}' as entity_id")
+        return name, [name]
     
     cache = get_entity_cache()
     if not cache:
-        logger.warning("Entity cache not initialized, cannot find entity by alias")
+        logger.warning("Entity cache not initialized, cannot find entity by name")
         return None, []
     
-    alias_lower = alias.lower()
+    name_lower = name.lower()
     matches = []
     
     for state in cache:
@@ -394,23 +263,19 @@ def find_entity_by_alias(alias: str) -> Tuple[Optional[str], List[str]]:
         attributes = state.get("attributes", {})
         friendly_name = attributes.get("friendly_name", "")
         
-        # Method 2: Check if alias matches friendly_name (case-insensitive)
-        if friendly_name and friendly_name.lower() == alias_lower:
+        if friendly_name and friendly_name.lower() == name_lower:
             logger.debug(f"Found entity {entity_id} by friendly_name: {friendly_name}")
             matches.append(entity_id)
             continue
         
-        # Also check if alias matches part of entity_id (case-insensitive)
-        if entity_id.lower().endswith(f".{alias_lower}"):
+        if entity_id.lower().endswith(f".{name_lower}"):
             logger.debug(f"Found entity {entity_id} by entity_id pattern")
             matches.append(entity_id)
     
     if not matches:
-        logger.debug(f"No entity found for alias: {alias}")
-        logger.debug(f"Searched through {len(cache)} entities")
+        logger.debug(f"No entity found for name: {name}")
         return None, []
     
-    # Return first match and all matches
-    logger.debug(f"Found {len(matches)} match(es) for alias '{alias}': {matches}")
+    logger.debug(f"Found {len(matches)} match(es) for name '{name}': {matches}")
     return matches[0], matches
 

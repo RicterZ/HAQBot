@@ -126,7 +126,7 @@ TENCENT_ASR_REGION=
 #### 设备控制命令
 
 - `/turnon <entity_id> [<entity_id2> ...]` - 打开设备
-  - 支持实体 ID（如 `light.living_room`）、友好名称或别名
+  - 支持实体 ID（如 `light.living_room`）或友好名称
   - 可同时控制多个设备
   - 示例：`/turnon 客厅灯` 或 `/turnon light.living_room light.bedroom`
   - 支持带空格的引号名称：`/turnon "Apple TV"`
@@ -142,7 +142,7 @@ TENCENT_ASR_REGION=
   - 示例：`/script my_script` 或 `/script script.my_script`
 
 - `/climate <entity_id> [模式] [温度]` - 控制空调设备
-  - 支持实体ID、友好名称或别名（与其他命令相同）
+  - 支持实体ID或友好名称（与其他命令相同）
   - 设置模式：`cool`/`heat`/`fan_only`/`off` 或 制冷/制热/通风/关闭
   - 设置温度：直接指定数字或使用 `temp <数字>`
   - 支持带引号的名称：`/climate "Living Room AC" cool 26`
@@ -150,7 +150,7 @@ TENCENT_ASR_REGION=
     - `/climate 客厅空调 制冷 26` - 设置为制冷模式，温度 26°C（使用友好名称）
     - `/climate living_room_ac cool 26` - 设置为制冷模式，温度 26°C（使用实体ID）
     - `/climate "Living Room AC" temp 25` - 仅设置温度为 25°C（使用引号名称）
-    - `/climate my_ac_alias 关闭` - 关闭空调（使用别名）
+    - `/climate living_room_ac 关闭` - 关闭空调
 
 #### 信息查询命令
 
@@ -165,22 +165,21 @@ TENCENT_ASR_REGION=
   - 与 `/light` 相同，但用于开关设备
 
 - `/search <关键词>` - 模糊搜索实体
-  - 通过实体 ID、友好名称或别名搜索实体（不区分大小写，支持部分匹配）
+  - 通过实体 ID 或友好名称搜索实体（不区分大小写，支持部分匹配）
   - 返回匹配的实体及其实体 ID 和友好名称
   - 示例：`/search 灯` 或 `/search light`
 
 - `/refresh` - 刷新实体缓存
-  - 重新从 Home Assistant 加载实体、设备、区域和别名信息
-  - 在添加新实体或更新别名后很有用
+  - 重新从 Home Assistant 加载实体、设备和区域信息
+  - 在添加新实体后很有用
 
 - `/help` - 显示所有支持的命令和描述
 
 #### 命令特性
 
-- **实体查找**：命令支持三种方式识别设备：
+- **实体查找**：命令支持两种方式识别设备：
   1. 实体 ID：`light.living_room`
   2. 友好名称：`客厅灯`
-  3. 别名：Home Assistant 中配置的任何别名
 
 - **多设备控制**：在一个命令中通过空格分隔控制多个设备
 
@@ -188,7 +187,7 @@ TENCENT_ASR_REGION=
 
 - **权限控制**：如果设置了 `ALLOWED_SENDERS`，只有指定的 QQ 用户可以使用控制命令。
 
-- **重复别名警告**：如果多个实体共享相同的别名，机器人会警告你，但仍会控制第一个匹配项
+- **重复名称警告**：如果多个实体共享相同的友好名称，机器人会警告你，但仍会控制第一个匹配项
 
 ---
 
