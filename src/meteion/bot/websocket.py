@@ -112,18 +112,19 @@ async def _control_switch_task(
                         errors.append((entity_id, str(e)))
                         logger.error(f"Error calling {service} for {entity_id}: {e}")
                 
-                    action = _get_service_action(service)
-                    
-                    if errors and not results:
-                        error_msgs = [f"{eid}: {err}" for eid, err in errors]
-                        response_text = t("action_failed", action=action, errors="\n".join(error_msgs))
-                    elif errors:
-                        success_count = len(results)
-                        error_msgs = [f"{eid}: {err}" for eid, err in errors]
-                        response_text = t("success_action_count", action=action, count=success_count, errors="\n".join(error_msgs))
-                    else:
-                        entity_list = ", ".join(entity_ids)
-                        response_text = t("success_action", action=action, entity_list=entity_list)
+                # Build response after processing all entities
+                action = _get_service_action(service)
+                
+                if errors and not results:
+                    error_msgs = [f"{eid}: {err}" for eid, err in errors]
+                    response_text = t("action_failed", action=action, errors="\n".join(error_msgs))
+                elif errors:
+                    success_count = len(results)
+                    error_msgs = [f"{eid}: {err}" for eid, err in errors]
+                    response_text = t("success_action_count", action=action, count=success_count, errors="\n".join(error_msgs))
+                else:
+                    entity_list = ", ".join(entity_ids)
+                    response_text = t("success_action", action=action, entity_list=entity_list)
                         
         except Exception as e:
             logger.error(f"Error in {service} task: {e}", exc_info=True)
