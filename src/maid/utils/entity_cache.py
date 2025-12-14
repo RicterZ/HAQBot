@@ -166,6 +166,16 @@ def get_devices_by_domain(domain: str) -> Dict[Optional[str], List[Dict[str, Any
     if not cache:
         return {}
     
+    # Log entity registry status for debugging
+    if not entity_registry:
+        logger.warning("Entity registry is empty or not loaded")
+    else:
+        logger.debug(f"Using entity registry with {len(entity_registry)} entities")
+        # Log sample entity IDs to verify format
+        sample_ids = list(entity_registry.keys())[:3]
+        if sample_ids:
+            logger.debug(f"Sample entity IDs in registry: {sample_ids}")
+    
     devices_by_area = {}
     device_entities_map = {}
     device_name_map = {}
@@ -211,7 +221,13 @@ def get_devices_by_domain(domain: str) -> Dict[Optional[str], List[Dict[str, Any
                     else:
                         logger.debug(f"Entity {entity_id} in registry but has no area_id")
                 else:
-                    logger.debug(f"Entity {entity_id} not found in entity registry")
+                    # Check if entity registry is empty or entity_id format doesn't match
+                    if not entity_registry:
+                        logger.debug(f"Entity registry is empty, cannot find {entity_id}")
+                    else:
+                        # Log first few entity IDs from registry to compare format
+                        sample_registry_ids = list(entity_registry.keys())[:3]
+                        logger.debug(f"Entity {entity_id} not found in registry. Sample registry IDs: {sample_registry_ids}")
             if not area_id:
                 # Try to get from entity attributes (though HA states API usually doesn't include this)
                 area_id = attributes.get("area_id")
