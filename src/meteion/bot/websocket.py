@@ -1,4 +1,5 @@
 import json
+import os
 import asyncio
 import threading
 from typing import Optional, List, Dict
@@ -35,6 +36,50 @@ def clear_handler(ws: WebSocketApp, message: dict):
     cleared = clear_conversation_context(group_id)
     response_text = t("conversation_context_cleared") if cleared else t("no_conversation_context")
     _send_response(ws, group_id, message_id, response_text)
+
+
+def _get_allowed_senders() -> Optional[List[str]]:
+    """Get list of allowed sender QQ numbers from environment variable
+    
+    Returns:
+        List of allowed QQ numbers, or None if all users are allowed
+    """
+    allowed = os.getenv("ALLOWED_SENDERS", "").strip()
+    if not allowed:
+        return None
+    
+    # Support comma or space separated QQ numbers
+    qq_list = [qq.strip() for qq in allowed.replace(",", " ").split() if qq.strip()]
+    return qq_list if qq_list else None
+
+
+def _is_sender_allowed(message: dict) -> bool:
+    """Check if the sender is allowed to control devices
+    
+    Args:
+        message: Message dictionary from WebSocket
+    
+    Returns:
+        True if sender is allowed, False otherwise
+    """
+    allowed_senders = _get_allowed_senders()
+    
+    # If no restriction, allow all
+    if allowed_senders is None:
+        return True
+    
+    # Get sender QQ number from message
+    # NapCat message structure may have user_id or sender_id
+    user_id = message.get("user_id") or message.get("sender_id") or message.get("user_id")
+    
+    if not user_id:
+        logger.warning("Cannot determine sender QQ number from message")
+        return False
+    
+    # Convert to string for comparison
+    user_id_str = str(user_id)
+    
+    return user_id_str in allowed_senders
 
 
 def _send_response(ws: WebSocketApp, group_id: str, message_id: Optional[str], response_text: str):
@@ -174,6 +219,10 @@ async def _control_switch_task(
 
 def turn_on_handler(ws: WebSocketApp, message: dict):
     """Handle /turnon command"""
+    if not _is_sender_allowed(message):
+        # Silently ignore if user doesn't have permission
+        return
+    
     group_id = message["group_id"]
     message_id = message.get("message_id")
     raw_message = message.get("raw_message", "").strip()
@@ -186,6 +235,10 @@ def turn_on_handler(ws: WebSocketApp, message: dict):
 
 def turn_off_handler(ws: WebSocketApp, message: dict):
     """Handle /turnoff command"""
+    if not _is_sender_allowed(message):
+        # Silently ignore if user doesn't have permission
+        return
+    
     group_id = message["group_id"]
     message_id = message.get("message_id")
     raw_message = message.get("raw_message", "").strip()
@@ -198,6 +251,10 @@ def turn_off_handler(ws: WebSocketApp, message: dict):
 
 def toggle_handler(ws: WebSocketApp, message: dict):
     """Handle /toggle command"""
+    if not _is_sender_allowed(message):
+        # Silently ignore if user doesn't have permission
+        return
+    
     group_id = message["group_id"]
     message_id = message.get("message_id")
     raw_message = message.get("raw_message", "").strip()

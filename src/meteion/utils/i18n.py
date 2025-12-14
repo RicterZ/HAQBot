@@ -48,6 +48,7 @@ _TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "info_command_description": "获取 Home Assistant 环境信息（实体统计）",
         "light_command_description": "列出所有灯光设备（按区域分组）",
         "switch_command_description": "列出所有开关设备（按区域分组）",
+        "permission_denied": "❌ 您没有权限执行此操作",
         
         # conversation.py
         "request_processed": "请求已处理",
@@ -124,6 +125,7 @@ _TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "info_command_description": "Get Home Assistant context information (entity statistics)",
         "light_command_description": "List all light devices (grouped by area)",
         "switch_command_description": "List all switch devices (grouped by area)",
+        "permission_denied": "❌ You do not have permission to perform this operation",
         
         # conversation.py
         "request_processed": "Request processed",

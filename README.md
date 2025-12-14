@@ -1,36 +1,34 @@
-HAQBot
-================
-QQ Bot for controlling Home Assistant devices via natural language conversation
+# HAQBot
+
+QQ Bot for controlling Home Assistant devices via natural language conversation.
 
 ## Features
 
-- Receives messages from QQ group chats and connects to Home Assistant's conversation agent (Ollama) to control devices and services
-- **Voice recognition support**: Automatically transcribes voice messages using Tencent Cloud ASR API
-- **Asynchronous processing**: Non-blocking message handling for better performance
-- **Context preservation**: Maintains conversation context per group for natural dialogue
-- Webhook endpoint for Home Assistant to send proactive notifications to QQ groups
+- **Natural Language Control**: Control Home Assistant devices through text or voice messages in QQ groups
+- **Direct Command Control**: Fast device control via commands (`/turnon`, `/turnoff`, `/toggle`) without LLM processing
+- **Entity Lookup**: Support entity ID, friendly name, or alias for device control
+- **Device Information**: Query device status and list devices by type (`/info`, `/light`, `/switch`)
+- **Area Grouping**: Devices are grouped by area for better organization
+- **Entity Caching**: In-memory cache for fast entity lookup without repeated API calls
+- **Permission Control**: Restrict device control to specific QQ users via environment variable
+- **Voice Recognition**: Automatically transcribes voice messages using Tencent Cloud ASR API
+- **Conversation Context**: Maintains conversation context per group for natural dialogue
+- **Webhook Notifications**: Home Assistant can send proactive notifications to QQ groups
+- **Multimodal Support**: Send text messages with files or video streams
+- **Asynchronous Processing**: Non-blocking message handling for better performance
+- **Internationalization**: Support for Chinese and English languages
 
-## How It Works
+## Architecture
 
-### Text Messages
+### Text Message Flow
 ```
-QQ Message → NapCat WebSocket → QQ Bot → HA Conversation API → Ollama Agent → Device Control
-                ↓                                                      ↓
-            Response   ←   QQ Reply    ←    HA Response   ←   Execution Result
+QQ Message → NapCat WebSocket → Bot → HA Conversation API → Ollama Agent → Device Control → Response
 ```
 
-### Voice Messages
+### Voice Message Flow
 ```
-QQ Voice → NapCat WebSocket → QQ Bot → Get Voice File → Tencent ASR → Text → HA Conversation API → Response
+QQ Voice → NapCat → Download Audio → Tencent ASR → Text → HA Conversation API → Response
 ```
-
-1. Connect to NapCat (QQ bot framework) via WebSocket
-2. Receive messages from QQ group chats (text or voice)
-3. For voice messages: Download voice file from NapCat and transcribe using Tencent Cloud ASR
-4. Forward text messages to Home Assistant's Conversation API
-5. HA's Ollama conversation agent processes and executes device control
-6. Return execution results to QQ users
-7. Conversation context is maintained per group for natural dialogue
 
 ## Configuration
 
@@ -56,65 +54,144 @@ TENCENT_ASR_REGION=         # Optional, leave empty for default
 # QQ account (optional)
 ACCOUNT=2167634556
 
+# Permission control (optional)
+# Comma or space separated QQ numbers allowed to control devices
+# If empty, all users can control devices
+ALLOWED_SENDERS=123456789 987654321
+
+# Language setting (optional, default: zh_CN)
+# Options: zh_CN (Chinese), en_US (English)
+LANGUAGE=zh_CN
+
+# Debug mode (optional, default: false)
+# Set to true to enable debug logging
+DEBUG=false
+
 # Webhook configuration (optional)
 WEBHOOK_PORT=8080
 WEBHOOK_TOKEN=your_webhook_token_here
 ```
 
-### Getting HA Token
+### Configuration Guide
+
+#### Home Assistant Token
 
 1. Log in to Home Assistant
-2. Click Profile → Long-Lived Access Tokens
-3. Create a new token and copy it
+2. Go to Profile → Long-Lived Access Tokens
+3. Create a new token and copy it to `HA_TOKEN`
 
-### Configuring Conversation Agent
+#### Conversation Agent
 
 Ensure that the `conversant.ollama_conversation` conversation agent is configured in Home Assistant.
 
-### Getting Tencent Cloud ASR Credentials
+#### Tencent Cloud ASR (Optional)
 
 1. Log in to [Tencent Cloud Console](https://console.cloud.tencent.com/)
 2. Navigate to **Access Management** → **API Key Management**
-3. Create a new API key or use an existing one
-4. Copy the `SecretId` and `SecretKey`
-5. Enable the **Speech Recognition (ASR)** service in Tencent Cloud
+3. Create a new API key and copy `SecretId` and `SecretKey`
+4. Enable the **Speech Recognition (ASR)** service
 
-**Note**: Voice recognition is optional. If `TENCENT_SECRET_ID` and `TENCENT_SECRET_KEY` are not configured, the bot will only process text messages.
+> **Note**: Voice recognition is optional. Without ASR credentials, the bot will only process text messages.
+
+## Quick Start
+
+### Prerequisites
+
+- Home Assistant with Conversation Agent (Ollama) configured
+- NapCat QQ bot framework
+- (Optional) Tencent Cloud ASR credentials for voice recognition
+
+### Installation
+
+1. Clone this repository
+2. Copy `.env.local` to `.env` and configure your settings
+3. Run with Docker Compose:
+
+```bash
+docker-compose up -d
+```
+
+Or run directly:
+
+```bash
+poetry install
+poetry run python src/meteion/main.py
+```
 
 ## Usage
 
-1. Send a message in a QQ group (no command prefix or @ required)
-2. The bot will forward the message to HA's conversation agent
-3. The conversation agent processes and executes the corresponding device control
-4. Returns the execution result
+### Natural Language Control
 
-### Text Messages
+Simply send a message in a QQ group (no command prefix or @ required). The bot will:
+1. Forward the message to Home Assistant's conversation agent
+2. Process and execute device control commands
+3. Return the execution result
 
+**Examples:**
 - User: "Turn on the living room light"
 - Bot: "The living room light has been turned on"
 
-### Voice Messages
+**Voice Message:**
+- Send a voice message in the group
+- Bot automatically transcribes and processes it
+- Returns the response
 
-The bot automatically recognizes voice messages using Tencent Cloud ASR:
-1. Send a voice message in the group
-2. The bot transcribes the voice to text
-3. Processes the text as a normal message
-4. Returns the response
+> **Note**: If voice recognition fails, the bot will silently skip the message to avoid spam.
 
-**Note**: If voice recognition fails or returns no result, the bot will silently skip the message to avoid spam.
+### Direct Commands
 
-## Webhook Notifications
+The bot supports direct commands for faster device control without LLM processing:
 
-The bot provides webhook endpoints that allow Home Assistant to send proactive notifications to QQ groups when certain events occur (e.g., washing machine finished, air conditioner turned on).
+#### Device Control Commands
 
-### Text Notification Endpoint
+- `/turnon <entity_id> [<entity_id2> ...]` - Turn on device(s)
+  - Supports entity ID (e.g., `light.living_room`), friendly name, or alias
+  - Can control multiple devices at once
+  - Example: `/turnon 客厅灯` or `/turnon light.living_room light.bedroom`
 
-- **URL**: `http://homeassistant-qq:8080/webhook/notify`
-- **Method**: `POST`
-- **Content-Type**: `application/json`
+- `/turnoff <entity_id> [<entity_id2> ...]` - Turn off device(s)
+  - Same as `/turnon` but turns devices off
 
-### Request Body
+- `/toggle <entity_id> [<entity_id2> ...]` - Toggle device state(s)
+  - Toggles the state of specified device(s)
 
+#### Information Commands
+
+- `/info` - Get Home Assistant context information
+  - Shows entity statistics by type (sensors, switches, lights, etc.)
+  - Displays current states of important sensors
+
+- `/light` - List all light devices
+  - Groups devices by area
+  - Shows friendly name, entity ID, and current state
+
+- `/switch` - List all switch devices
+  - Same as `/light` but for switches
+
+- `/help` - Show all supported commands and descriptions
+
+#### Command Features
+
+- **Entity Lookup**: Commands support three ways to identify devices:
+  1. Entity ID: `light.living_room`
+  2. Friendly Name: `客厅灯`
+  3. Alias: Any alias configured in Home Assistant
+
+- **Multiple Devices**: Control multiple devices in one command by separating them with spaces
+
+- **Permission Control**: If `ALLOWED_SENDERS` is set, only specified QQ users can use control commands (`/turnon`, `/turnoff`, `/toggle`). Information commands (`/info`, `/light`, `/switch`, `/help`) are available to everyone.
+
+- **Duplicate Alias Warning**: If multiple entities share the same alias, the bot will warn you but still control the first match
+
+## Webhook API
+
+The bot provides webhook endpoints for Home Assistant to send proactive notifications to QQ groups.
+
+### Text Notification
+
+**Endpoint**: `POST http://homeassistant-qq:8080/webhook/notify`
+
+**Request Body**:
 ```json
 {
   "group_id": "123456789",
@@ -123,22 +200,16 @@ The bot provides webhook endpoints that allow Home Assistant to send proactive n
 }
 ```
 
-### Parameters
+**Parameters**:
+- `group_id` (required): QQ group ID
+- `message` (required): Message text
+- `token` (optional): Authentication token (if `WEBHOOK_TOKEN` is set)
 
-- `group_id` (required): QQ group ID to send the message to
-- `message` (required): Message text to send
-- `token` (optional): Webhook authentication token (if `WEBHOOK_TOKEN` is set)
+### Multimodal Notification
 
-### Multimodal Notification Endpoint
+**Endpoint**: `POST http://homeassistant-qq:8080/webhook/multimodal`
 
-- **URL**: `http://homeassistant-qq:8080/webhook/multimodal`
-- **Method**: `POST`
-- **Content-Type**: `application/json`
-
-This endpoint supports sending text messages along with files (images, videos, etc.). Currently, it supports video stream URLs which will be downloaded using ffmpeg and sent as files.
-
-### Multimodal Request Body
-
+**Request Body**:
 ```json
 {
   "group_id": "123456789",
@@ -149,35 +220,20 @@ This endpoint supports sending text messages along with files (images, videos, e
 }
 ```
 
-### Multimodal Parameters
+**Parameters**:
+- `group_id` (required): QQ group ID
+- `message` (optional): Message text
+- `url` (optional): Video stream URL (supports HLS/m3u8, downloaded via ffmpeg)
+- `token` (optional): Authentication token
+- `duration` (optional): Video recording duration in seconds (default: 60)
 
-- `group_id` (required): QQ group ID to send the message to
-- `message` (optional): Message text to send
-- `url` (optional): URL of the file/video stream to download and send
-- `token` (optional): Webhook authentication token (if `WEBHOOK_TOKEN` is set)
-- `duration` (optional): Duration in seconds to record video stream (default: 60)
+> **Note**: At least one of `message` or `url` must be provided.
 
-**Note**: At least one of `message` or `url` must be provided.
+### Home Assistant Integration
 
-### Configuring REST Command
+#### Configure REST Command
 
-Add the following to your `configuration.yaml`:
-
-```yaml
-rest_command:
-  homeassistant_qq:
-    url: "http://homeassistant-qq:8080/webhook/notify"
-    method: POST
-    content_type: "application/json"
-    payload: |
-      {
-        "group_id": "{{ group_id }}",
-        "message": "{{ message }}",
-        "token": "{{ token | default('') }}"
-      }
-```
-
-Or if you want to set a default group_id:
+Add to your `configuration.yaml`:
 
 ```yaml
 rest_command:
@@ -191,50 +247,7 @@ rest_command:
         "message": "{{ message }}",
         "token": "{{ token | default('') }}"
       }
-```
-
-### Home Assistant Automation Examples
-
-#### Example 1: Simple Notification (with default group_id)
-
-If you've set a default `group_id` in the `rest_command` configuration:
-
-```yaml
-automation:
-  - alias: "Simple Notification"
-    trigger:
-      - platform: state
-        entity_id: sensor.some_sensor
-        to: "active"
-    action:
-      - service: rest_command.homeassistant_qq
-        data:
-          message: "家庭温度太冷了，小仓鼠要冻死了喵"
-```
-
-#### Example 2: Full Parameters Notification
-
-```yaml
-automation:
-  - alias: "Washing Machine Finished Notification"
-    trigger:
-      - platform: state
-        entity_id: sensor.washing_machine_status
-        to: "completed"
-    action:
-      - service: rest_command.homeassistant_qq
-        data:
-          group_id: "123456789"
-          message: "🧺 Washing machine finished! Clothes are ready to be taken out."
-          token: "your_webhook_token_here"
-```
-
-#### Example 3: Multimodal Notification with Video Stream
-
-Send a text message along with a video stream from a camera:
-
-```yaml
-rest_command:
+  
   homeassistant_qq_multimodal:
     url: "http://homeassistant-qq:8080/webhook/multimodal"
     method: POST
@@ -247,46 +260,70 @@ rest_command:
         "token": "{{ token | default('') }}",
         "duration": {{ duration | default(60) }}
       }
+```
 
+#### Automation Examples
+
+**Simple Notification:**
+```yaml
 automation:
-  - alias: "Security Alert with Video"
+  - alias: "Washing Machine Finished"
     trigger:
       - platform: state
-        entity_id: binary_sensor.motion_sensor
-        to: "on"
+        entity_id: sensor.washing_machine_status
+        to: "completed"
+    action:
+      - service: rest_command.homeassistant_qq
+        data:
+          message: "🧺 Washing machine finished!"
+```
+
+**Multimodal Notification with Video:**
+```yaml
+automation:
+  - alias: "Door Motion Alert - Send QQ Notification"
+    trigger:
+      - trigger: state
+        entity_id:
+          - camera.front_door
+        attribute: motion_video_time
+        for:
+          hours: 0
+          minutes: 0
+          seconds: 20
     action:
       - service: rest_command.homeassistant_qq_multimodal
         data:
-          message: "🚨 Motion detected in living room!"
-          video_url: "http://camera.local:8080/stream.m3u8"
+          message: "⚠️ Motion detected at front door"
+          url: "{{ state_attr('camera.front_door', 'stream_address') }}"
           duration: 30
-          token: "your_webhook_token_here"
 ```
-
-This example will:
-1. Download 30 seconds of video from the camera stream
-2. Send the video file along with the text message to the QQ group
 
 ### Security
 
-If you set `WEBHOOK_TOKEN` in your environment variables, you must include the same token in the `token` field of your webhook requests. This prevents unauthorized access to the webhook endpoint.
+If `WEBHOOK_TOKEN` is set, include it in the `token` field of webhook requests to prevent unauthorized access.
 
 ## Development
 
-### Install Dependencies
+### Requirements
+
+- Python 3.10+
+- Poetry
+- Docker & Docker Compose (for containerized deployment)
+
+### Setup
 
 ```bash
+# Install dependencies
 poetry install
-```
 
-### Run
-
-```bash
+# Run locally
 poetry run python src/meteion/main.py
-```
 
-### Docker Run
-
-```bash
+# Or use Docker
 docker-compose up -d
 ```
+
+## License
+
+GPL
