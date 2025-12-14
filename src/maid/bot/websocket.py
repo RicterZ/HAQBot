@@ -282,9 +282,9 @@ async def _info_task(ws: WebSocketApp, group_id: str, message_id: Optional[str])
                 for light in context["lights_on"]:
                     brightness = light.get("brightness")
                     if brightness:
-                        lines.append(f"  •{light['friendly_name']} ({brightness}%)")
+                        lines.append(f"  • {light['friendly_name']} ({brightness}%)")
                     else:
-                        lines.append(f"  •{light['friendly_name']}")
+                        lines.append(f"  • {light['friendly_name']}")
             
             if context["climate"]:
                 lines.append(f"\n{t('climate_devices')}:")
@@ -300,26 +300,53 @@ async def _info_task(ws: WebSocketApp, group_id: str, message_id: Optional[str])
                         parts.append(f"{t('fan')}: {climate['fan_mode']}")
                     
                     status = " - ".join(parts) if parts else climate.get("hvac_mode", "")
-                    lines.append(f"  •{climate['friendly_name']}: {status}")
+                    lines.append(f"  • {climate['friendly_name']}: {status}")
             
             if context["temperature_sensors"]:
-                lines.append(f"\n{t('temperature')}:")
+                # Group temperature sensors by area
+                from maid.utils.entity_cache import get_entity_areas_cache, get_area_cache
+                
+                entity_areas = get_entity_areas_cache() or {}
+                area_cache = get_area_cache() or {}
+                temp_by_area = {}
+                
                 for temp in context["temperature_sensors"]:
-                    lines.append(f"  •{temp['friendly_name']}: {temp['value']} {temp['unit']}")
+                    entity_id = temp.get("entity_id", "")
+                    area_name = entity_areas.get(entity_id, "")
+                    
+                    if not area_name:
+                        area_name = t("ungrouped_area")
+                    
+                    if area_name not in temp_by_area:
+                        temp_by_area[area_name] = []
+                    temp_by_area[area_name].append(temp)
+                
+                lines.append(f"\n{t('temperature')}:")
+                # Sort areas: ungrouped last
+                sorted_areas = sorted(temp_by_area.items(), key=lambda x: (x[0] == t("ungrouped_area"), x[0]))
+                
+                for area_name, temps in sorted_areas:
+                    # For each area, show the first temperature sensor (representative)
+                    if len(temps) > 0:
+                        temp = temps[0]
+                        if area_name == t("ungrouped_area"):
+                            lines.append(f"  • {temp['friendly_name']}: {temp['value']} {temp['unit']}")
+                        else:
+                            lines.append(f"  • {area_name}: {temp['value']} {temp['unit']}")
             
             if context["humidity_sensors"]:
                 lines.append(f"\n{t('humidity')}:")
                 for humidity in context["humidity_sensors"]:
-                    lines.append(f"  •{humidity['friendly_name']}: {humidity['value']} {humidity['unit']}")
+                    lines.append(f"  • {humidity['friendly_name']}: {humidity['value']} {humidity['unit']}")
             
             if context["air_quality_sensors"]:
                 lines.append(f"\n{t('air_quality')}:")
                 for aq in context["air_quality_sensors"]:
                     unit = aq.get("unit", "")
                     if unit:
-                        lines.append(f"  •{aq['friendly_name']}: {aq['value']} {unit}")
+                        lines.append(f"  • {aq['friendly_name']}: {aq['value']} {unit}")
                     else:
-                        lines.append(f"  •{aq['friendly_name']}: {aq['value']}")
+                        lines.append(f"  • {aq['friendly_name']}: {aq['value']}")
             
             if context["weather"]:
                 lines.append(f"\n{t('weather')}:")
@@ -332,7 +359,7 @@ async def _info_task(ws: WebSocketApp, group_id: str, message_id: Optional[str])
                     if weather.get("humidity") is not None:
                         parts.append(f"{t('humidity')}: {weather['humidity']}%")
                     status = " - ".join(parts) if parts else weather.get("condition", "")
-                    lines.append(f"  •{weather['friendly_name']}: {status}")
+                    lines.append(f"  • {weather['friendly_name']}: {status}")
             
             if context["important_binary_sensors"]:
                 lines.append(f"\n{t('important_status')}:")

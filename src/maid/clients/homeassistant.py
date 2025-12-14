@@ -308,6 +308,39 @@ class HomeAssistantClient:
             logger.error(f"Error getting areas: {e}")
             raise
 
+    def _is_device_temperature_sensor(self, entity_id: str, device_id: Optional[str], all_states: List[Dict[str, Any]]) -> bool:
+        """Check if a temperature sensor belongs to a device (not ambient temperature)
+        
+        Args:
+            entity_id: The temperature sensor entity ID
+            device_id: The device ID of the sensor
+            all_states: All entity states to check device entities
+        
+        Returns:
+            True if this is a device temperature sensor, False if ambient
+        """
+        if not device_id:
+            return False
+        
+        # Device types that typically have device temperature sensors
+        device_control_domains = ["climate", "switch", "light", "fan", "heater", "thermostat"]
+        
+        # Check if any entity in the same device is a control device
+        for state in all_states:
+            other_entity_id = state.get("entity_id", "")
+            if not other_entity_id or other_entity_id == entity_id:
+                continue
+            
+            other_attributes = state.get("attributes", {})
+            other_device_id = other_attributes.get("device_id")
+            
+            if other_device_id == device_id:
+                other_domain = other_entity_id.split(".")[0] if "." in other_entity_id else ""
+                if other_domain in device_control_domains:
+                    return True
+        
+        return False
+
     async def get_context_info(self) -> Dict[str, Any]:
         """Get home context information - only important home status
         
@@ -362,13 +395,18 @@ class HomeAssistantClient:
                 elif domain == "sensor":
                     unit = attributes.get("unit_of_measurement", "")
                     device_class = attributes.get("device_class", "")
+                    device_id = attributes.get("device_id")
                     
                     if device_class == "temperature" or "temperature" in entity_id.lower():
-                        context["temperature_sensors"].append({
-                            "friendly_name": friendly_name,
-                            "value": entity_state,
-                            "unit": unit or "°C"
-                        })
+                        # Filter out device temperature sensors (e.g., heater device temperature)
+                        if not self._is_device_temperature_sensor(entity_id, device_id, states):
+                            context["temperature_sensors"].append({
+                                "entity_id": entity_id,
+                                "friendly_name": friendly_name,
+                                "value": entity_state,
+                                "unit": unit or "°C",
+                                "device_id": device_id
+                            })
                     elif device_class == "humidity" or "humidity" in entity_id.lower():
                         context["humidity_sensors"].append({
                             "friendly_name": friendly_name,
