@@ -413,13 +413,37 @@ class HomeAssistantClient:
                     target_temp = attributes.get("temperature")
                     hvac_mode = attributes.get("hvac_mode", entity_state)
                     fan_mode = attributes.get("fan_mode")
+                    humidity = attributes.get("humidity")
+                    
+                    # Filter out invalid values (0 or None)
+                    if current_temp is not None:
+                        try:
+                            if float(current_temp) == 0:
+                                current_temp = None
+                        except (ValueError, TypeError):
+                            current_temp = None
+                    
+                    if target_temp is not None:
+                        try:
+                            if float(target_temp) == 0:
+                                target_temp = None
+                        except (ValueError, TypeError):
+                            target_temp = None
+                    
+                    if humidity is not None:
+                        try:
+                            if float(humidity) == 0:
+                                humidity = None
+                        except (ValueError, TypeError):
+                            humidity = None
                     
                     context["climate"].append({
                         "friendly_name": friendly_name,
                         "hvac_mode": hvac_mode,
                         "current_temp": current_temp,
                         "target_temp": target_temp,
-                        "fan_mode": fan_mode
+                        "fan_mode": fan_mode,
+                        "humidity": humidity
                     })
                 
                 elif domain == "sensor":
@@ -430,19 +454,33 @@ class HomeAssistantClient:
                     if device_class == "temperature" or "temperature" in entity_id.lower():
                         # Filter out device temperature sensors (e.g., heater device temperature, socket temperature)
                         if not self._is_device_temperature_sensor(entity_id, device_id, friendly_name, states):
-                            context["temperature_sensors"].append({
-                                "entity_id": entity_id,
-                                "friendly_name": friendly_name,
-                                "value": entity_state,
-                                "unit": unit or "°C",
-                                "device_id": device_id
-                            })
+                            # Filter out invalid temperature values (0 or "0")
+                            try:
+                                temp_value = float(entity_state) if entity_state else 0
+                                if temp_value != 0:
+                                    context["temperature_sensors"].append({
+                                        "entity_id": entity_id,
+                                        "friendly_name": friendly_name,
+                                        "value": entity_state,
+                                        "unit": unit or "°C",
+                                        "device_id": device_id
+                                    })
+                            except (ValueError, TypeError):
+                                # If not a number, skip it
+                                pass
                     elif device_class == "humidity" or "humidity" in entity_id.lower():
-                        context["humidity_sensors"].append({
-                            "friendly_name": friendly_name,
-                            "value": entity_state,
-                            "unit": unit or "%"
-                        })
+                        # Filter out invalid humidity values (0 or "0")
+                        try:
+                            humidity_value = float(entity_state) if entity_state else 0
+                            if humidity_value > 0:
+                                context["humidity_sensors"].append({
+                                    "friendly_name": friendly_name,
+                                    "value": entity_state,
+                                    "unit": unit or "%"
+                                })
+                        except (ValueError, TypeError):
+                            # If not a number, skip it
+                            pass
                     elif device_class in ["aqi", "pm25", "pm10", "co2", "co", "no2", "o3"] or "air_quality" in entity_id.lower() or "aqi" in entity_id.lower():
                         context["air_quality_sensors"].append({
                             "friendly_name": friendly_name,

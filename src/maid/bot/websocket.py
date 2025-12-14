@@ -428,14 +428,35 @@ async def _info_task(ws: WebSocketApp, group_id: str, message_id: Optional[str])
                 lines.append(f"\n{t('climate_devices')}:")
                 for climate in context["climate"]:
                     parts = []
-                    if climate.get("current_temp"):
-                        parts.append(f"{t('current_temp')}: {climate['current_temp']}°C")
-                    if climate.get("target_temp"):
-                        parts.append(f"{t('target_temp')}: {climate['target_temp']}°C")
+                    current_temp = climate.get("current_temp")
+                    if current_temp is not None:
+                        try:
+                            if float(current_temp) != 0:
+                                parts.append(f"{t('current_temp')}: {current_temp}°C")
+                        except (ValueError, TypeError):
+                            pass
+                    
+                    target_temp = climate.get("target_temp")
+                    if target_temp is not None:
+                        try:
+                            if float(target_temp) != 0:
+                                parts.append(f"{t('target_temp')}: {target_temp}°C")
+                        except (ValueError, TypeError):
+                            pass
+                    
                     if climate.get("hvac_mode"):
                         parts.append(f"{t('mode')}: {climate['hvac_mode']}")
                     if climate.get("fan_mode"):
                         parts.append(f"{t('fan')}: {climate['fan_mode']}")
+                    
+                    # Don't show humidity if it's 0
+                    humidity = climate.get("humidity")
+                    if humidity is not None:
+                        try:
+                            if float(humidity) != 0:
+                                parts.append(f"{t('humidity')}: {humidity}%")
+                        except (ValueError, TypeError):
+                            pass
                     
                     status = " - ".join(parts) if parts else climate.get("hvac_mode", "")
                     lines.append(f"  • {climate['friendly_name']}: {status}")
