@@ -263,7 +263,7 @@ rest_command:
       {
         "group_id": "123456789",
         "message": "{{ message }}",
-        "url": "{{ video_url }}",
+        "url": "{{ url }}",
         "token": "{{ token | default('') }}",
         "duration": {{ duration | default(60) }}
       }
