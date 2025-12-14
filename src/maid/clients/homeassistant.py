@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 from typing import Optional, Dict, Any, List
 
@@ -191,6 +192,13 @@ class HomeAssistantClient:
             
             devices = response.json()
             logger.debug(f"Received {len(devices)} devices")
+            
+            # Log sample device structure for debugging
+            if devices and logger.isEnabledFor(logging.DEBUG):
+                sample = devices[0]
+                logger.debug(f"Sample device structure: {list(sample.keys())}")
+                if "area_id" in sample:
+                    logger.debug(f"Sample device area_id: {sample.get('area_id')}")
             
             return devices
         except httpx.HTTPStatusError as e:

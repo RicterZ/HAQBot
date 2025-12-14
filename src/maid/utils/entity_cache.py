@@ -52,6 +52,12 @@ async def load_entity_cache() -> bool:
                 _cache_initialized = True
             
             logger.info(f"Entity cache loaded: {len(states)} entities, {len(devices)} devices, {len(areas)} areas")
+            
+            # Log device area_id statistics for debugging
+            if devices:
+                devices_with_area = sum(1 for d in devices if d.get("area_id"))
+                logger.info(f"Devices with area_id: {devices_with_area}/{len(devices)}")
+            
             return True
         finally:
             await client.close()
@@ -150,8 +156,14 @@ def get_devices_by_domain(domain: str) -> Dict[Optional[str], List[Dict[str, Any
             device_id = device.get("id")
             if device_id:
                 device_name_map[device_id] = device.get("name", "")
-                # area_id is stored in device object, not entity attributes
-                device_area_map[device_id] = device.get("area_id")
+                # area_id is stored in device object
+                # Home Assistant device registry returns area_id directly
+                area_id = device.get("area_id")
+                device_area_map[device_id] = area_id
+                if area_id:
+                    logger.debug(f"Device {device_id} ({device.get('name', '')}) has area_id: {area_id}")
+                else:
+                    logger.debug(f"Device {device_id} ({device.get('name', '')}) has no area_id")
     
     for state in cache:
         entity_id = state.get("entity_id", "")
@@ -167,7 +179,10 @@ def get_devices_by_domain(domain: str) -> Dict[Optional[str], List[Dict[str, Any
         
         if device_id not in device_entities_map:
             # Get area_id from device_cache first, fallback to entity attributes
-            area_id = device_area_map.get(device_id) or attributes.get("area_id")
+            area_id = device_area_map.get(device_id)
+            if not area_id:
+                # Try to get from entity attributes (though HA states API usually doesn't include this)
+                area_id = attributes.get("area_id")
             
             device_name = (
                 device_name_map.get(device_id) or
@@ -182,6 +197,8 @@ def get_devices_by_domain(domain: str) -> Dict[Optional[str], List[Dict[str, Any
                 "entities": [],
                 "states": []
             }
+            if not area_id:
+                logger.debug(f"Device {device_id} ({device_name}) has no area_id")
         
         device_entities_map[device_id]["entities"].append(entity_id)
         device_entities_map[device_id]["states"].append(entity_state)
