@@ -141,6 +141,15 @@ TENCENT_ASR_REGION=
   - 通过脚本 ID 或实体 ID 执行 Home Assistant 脚本
   - 示例：`/script my_script` 或 `/script script.my_script`
 
+- `/climate <entity_id> [模式] [温度]` - 控制空调设备
+  - 设置模式：`cool`/`heat`/`fan_only`/`off` 或 制冷/制热/通风/关闭
+  - 设置温度：直接指定数字或使用 `temp <数字>`
+  - 示例：
+    - `/climate 客厅空调 制冷 26` - 设置为制冷模式，温度 26°C
+    - `/climate living_room_ac cool 26` - 设置为制冷模式，温度 26°C（英文）
+    - `/climate 客厅空调 temp 25` - 仅设置温度为 25°C
+    - `/climate 客厅空调 关闭` - 关闭空调
+
 #### 信息查询命令
 
 - `/info` - 获取 Home Assistant 环境信息

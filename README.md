@@ -141,6 +141,15 @@ The bot supports direct commands for faster device control without LLM processin
   - Executes a Home Assistant script by script ID or entity ID
   - Example: `/script my_script` or `/script script.my_script`
 
+- `/climate <entity_id> [mode] [temp]` - Control climate device
+  - Set mode: `cool`/`heat`/`fan_only`/`off` (or 制冷/制热/通风/关闭 in Chinese)
+  - Set temperature: specify number or use `temp <number>`
+  - Examples:
+    - `/climate living_room_ac cool 26` - Set to cool mode at 26°C
+    - `/climate 客厅空调 制冷 26` - Set to cool mode at 26°C (Chinese)
+    - `/climate living_room_ac temp 25` - Set temperature to 25°C only
+    - `/climate living_room_ac off` - Turn off climate device
+
 #### Information Commands
 
 - `/info` - Get Home Assistant context information

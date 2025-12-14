@@ -2,7 +2,7 @@ import json
 import os
 import asyncio
 import threading
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Tuple
 
 from websocket import WebSocketApp
 
@@ -254,6 +254,153 @@ def toggle_handler(ws: WebSocketApp, message: dict):
     
     entity_ids = _parse_entity_ids(raw_message, "/toggle ")
     task = _control_switch_task(ws, group_id, message_id, "toggle", entity_ids)
+    thread = threading.Thread(target=run_async_task, args=(task,), daemon=True)
+    thread.start()
+
+
+def _parse_climate_command(raw_message: str) -> Tuple[Optional[str], Optional[str], Optional[float]]:
+    """Parse climate command arguments
+    
+    Args:
+        raw_message: Raw message string starting with "/climate "
+    
+    Returns:
+        Tuple of (entity_id, mode, temperature)
+        mode can be: cool, heat, fan_only, off, or None
+        temperature is float or None
+    """
+    if not raw_message.startswith("/climate "):
+        return None, None, None
+    
+    args = raw_message[9:].strip()  # Remove "/climate "
+    if not args:
+        return None, None, None
+    
+    # Mode mapping (Chinese to English)
+    mode_map = {
+        "制冷": "cool",
+        "制热": "heat",
+        "通风": "fan_only",
+        "关闭": "off",
+        "off": "off",
+        "cool": "cool",
+        "heat": "heat",
+        "fan_only": "fan_only",
+        "fan": "fan_only"
+    }
+    
+    parts = args.split()
+    if not parts:
+        return None, None, None
+    
+    entity_id = parts[0]
+    mode = None
+    temperature = None
+    
+    # Parse remaining arguments
+    i = 1
+    while i < len(parts):
+        arg = parts[i].lower()
+        
+        # Check if it's a temperature value (number)
+        if arg.replace('.', '').replace('-', '').isdigit():
+            try:
+                temperature = float(arg)
+            except ValueError:
+                pass
+        # Check if it's "temp" keyword followed by temperature
+        elif arg == "temp" and i + 1 < len(parts):
+            try:
+                temperature = float(parts[i + 1])
+                i += 1  # Skip next token
+            except (ValueError, IndexError):
+                pass
+        # Check if it's a mode
+        elif arg in mode_map:
+            mode = mode_map[arg]
+        # Check Chinese mode names
+        elif arg in ["制冷", "制热", "通风", "关闭"]:
+            mode = mode_map[arg]
+        
+        i += 1
+    
+    return entity_id, mode, temperature
+
+
+async def _climate_control_task(
+    ws: WebSocketApp,
+    group_id: str,
+    message_id: Optional[str],
+    entity_id: str,
+    mode: Optional[str],
+    temperature: Optional[float]
+):
+    """Async task: control climate device"""
+    try:
+        client = HomeAssistantClient()
+        try:
+            from maid.utils.entity_cache import find_entity_by_alias
+            
+            # Find entity by alias or ID
+            actual_entity_id, all_matches = find_entity_by_alias(entity_id)
+            if not actual_entity_id:
+                response_text = t("entity_not_found")
+                send_response(ws, group_id, message_id, response_text)
+                return
+            
+            warning_msg = ""
+            if len(all_matches) > 1:
+                warning_msg = t("multiple_entities_found", alias=entity_id, count=len(all_matches), first=actual_entity_id)
+                logger.warning(f"Multiple entities found for alias '{entity_id}': {all_matches}, using first: {actual_entity_id}")
+            
+            results = []
+            
+            # Set mode if specified
+            if mode:
+                if mode == "off":
+                    result = await client.call_service("climate", "turn_off", entity_id=actual_entity_id)
+                else:
+                    result = await client.call_service("climate", "set_hvac_mode", entity_id=actual_entity_id, hvac_mode=mode)
+                results.append(t("climate_mode_set", mode=t(f"mode_{mode}")))
+            
+            # Set temperature if specified
+            if temperature is not None:
+                result = await client.call_service("climate", "set_temperature", entity_id=actual_entity_id, temperature=temperature)
+                results.append(t("climate_temp_set", temp=temperature))
+            
+            if not results:
+                response_text = t("climate_no_params")
+            else:
+                response_text = " ".join(results)
+                if warning_msg:
+                    response_text += f"\n{warning_msg}"
+                    
+        except Exception as e:
+            logger.error(f"Error controlling climate device: {e}", exc_info=True)
+            response_text = t("error_processing_command", error=str(e))
+        finally:
+            await client.close()
+        
+        send_response(ws, group_id, message_id, response_text)
+    except Exception as e:
+        logger.error(f"Error in climate_control_task: {e}", exc_info=True)
+        send_response(ws, group_id, message_id, t("error_processing_command", error=str(e)))
+
+
+def climate_handler(ws: WebSocketApp, message: dict):
+    """Handle /climate command"""
+    group_id = message["group_id"]
+    message_id = message.get("message_id")
+    raw_message = message.get("raw_message", "").strip()
+    
+    entity_id, mode, temperature = _parse_climate_command(raw_message)
+    
+    if not entity_id:
+        response_text = t("climate_usage")
+        send_response(ws, group_id, message_id, response_text)
+        return
+    
+    task = _climate_control_task(ws, group_id, message_id, entity_id, mode, temperature)
     thread = threading.Thread(target=run_async_task, args=(task,), daemon=True)
     thread.start()
 
@@ -572,6 +719,11 @@ def _get_commands_list() -> List[Dict[str, str]]:
             "emoji": "📜"
         },
         {
+            "command": "/climate <entity_id> [mode] [temp]",
+            "description": t("climate_command_description"),
+            "emoji": "❄️"
+        },
+        {
             "command": "/search <query>",
             "description": t("search_command_description"),
             "emoji": "🔍"
@@ -708,7 +860,9 @@ def help_handler(ws: WebSocketApp, message: dict):
     commands = _get_commands_list()
     
     lines = []
-    lines.append(t("help_header"))
+    # Get display nickname dynamically
+    display_nickname = os.getenv("DISPLAY_NICKNAME", "メイド")
+    lines.append(t("help_header", nickname=display_nickname))
     
     for cmd_info in commands:
         emoji = cmd_info.get("emoji", "•")
@@ -769,6 +923,8 @@ def on_message(ws, message):
         switch_handler(ws, message)
     elif raw_message.startswith("/script "):
         script_handler(ws, message)
+    elif raw_message.startswith("/climate "):
+        climate_handler(ws, message)
     elif raw_message.startswith("/search "):
         search_handler(ws, message)
     elif raw_message == "/help":
