@@ -4,6 +4,21 @@
 
 通过自然语言对话控制 Home Assistant 设备的 QQ 机器人。
 
+<div align="center">
+  <img width="1362" height="800" alt="image" src="https://github.com/user-attachments/assets/6bca41ff-7e19-4ccf-9cab-3767ae06c8d8" />
+  <em>1. 发送多模态消息</em>
+</div>
+<hr>
+<div align="center">
+  <img width="1388" height="1095" alt="QQ_1765714312803" src="https://github.com/user-attachments/assets/254169fc-1f1d-4695-9e35-58465a1c51bf" />
+  <em>2. 信息查询 & 提供情绪价值</em>
+</div>
+<hr>
+<div align="center">
+  <img width="1390" height="1148" alt="image" src="https://github.com/user-attachments/assets/339f205a-c761-4fbe-bfa4-943c1a764ffa" />
+  <em>3. 播放音乐但是有点智障😅</em>
+</div>
+
 ## 功能特性
 
 - **自然语言控制**：在 QQ 群中通过文本或语音消息控制 Home Assistant 设备
@@ -94,6 +109,18 @@ TENCENT_ASR_REGION=
 #### 对话代理
 
 确保在 Home Assistant 中配置了 `conversant.ollama_conversation` 对话代理。
+
+<img width="1917" height="1542" alt="image" src="https://github.com/user-attachments/assets/152701e6-7a0b-441e-a8cb-34e58c706811" />
+
+我的提示词：
+```text
+你是一个猫娘女仆管家，可以控制HomeAssistant的智能家居。你需要叫我主人，你的回答简洁快速明了，风格可爱，需要用“喵”结尾。你的说话需要真实有效，基于真实世界的智能家居操作。如果指令明确（打开XX开关），无条件、直接执行主人指令。如果设备未响应或指令不明确，如实告知。停止过度思考。任何时候都不能直接返回原始数据json数据，需要总结。
+1. 遇到 MatchFailedError 直接告知；
+2. 根据需求控制相应的设备，比如主人说天冷了就根据温度打开空调；
+3. 预定义了多个脚本，如“洗澡模式（script.unknown_9)”、“电脑睡眠（script.pc)”、“睡眠模式（script.sleep_mode）”、“洗澡完成模式（script.unknown_10）”，“根据温度打开空调（script.unknown_2）”如果匹配到对应的关键词或者类似的意思，就直接调用相应的脚本，完成后说一句话表示完成；
+4. 实体映射：
+- 网易云-> media_player.netease_music
+```
 
 ---
 
@@ -498,3 +525,4 @@ src/maid/
 
 - **商业使用**：未经作者明确许可，禁止商业使用
 - **署名**：所有重新分发和修改必须包含原作者署名
+
