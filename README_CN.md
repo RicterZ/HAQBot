@@ -56,6 +56,10 @@ TENCENT_ASR_REGION=         # 可选，留空使用默认
 # QQ 账号（必需）- 机器人的 QQ 号
 ACCOUNT=your_qq_account_number
 
+# 显示昵称（可选，默认：メイド）
+# 在转发消息中显示的昵称
+DISPLAY_NICKNAME=メイド
+
 # 权限控制（可选）
 # 允许控制设备的 QQ 号码，用逗号或空格分隔
 # 如果为空，所有用户都可以控制设备

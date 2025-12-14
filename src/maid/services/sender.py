@@ -71,8 +71,8 @@ def send_group_multimodal_message(
     try:
         from datetime import datetime
         
-        user_id = os.getenv('ACCOUNT', '1145141919')
-        display_nickname = "メイド"
+        user_id = os.getenv('ACCOUNT', '10001')
+        display_nickname = os.getenv('DISPLAY_NICKNAME', 'メイド')
         
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
         
@@ -101,7 +101,7 @@ def send_group_multimodal_message(
             content=[TextMessage(timestamp)]
         )
         nodes.append(time_node)
-        source = "メイド WARNING"
+        source = f"{display_nickname} WARNING"
         
         message_text = message or ""
         news = [{"text": message_text}]
