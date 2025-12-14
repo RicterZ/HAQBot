@@ -348,6 +348,12 @@ async def _info_task(ws: WebSocketApp, group_id: str, message_id: Optional[str])
                     else:
                         lines.append(f"  • {aq['friendly_name']}: {aq['value']}")
             
+            if context["energy_sensors"]:
+                lines.append(f"\n{t('energy_consumption')}:")
+                for energy in context["energy_sensors"]:
+                    unit = energy.get("unit", "kWh")
+                    lines.append(f"  • {energy['friendly_name']}: {energy['value']} {unit}")
+            
             if context["weather"]:
                 lines.append(f"\n{t('weather')}:")
                 for weather in context["weather"]:
@@ -472,6 +478,64 @@ def switch_handler(ws: WebSocketApp, message: dict):
     thread.start()
 
 
+async def _script_task(
+    ws: WebSocketApp,
+    group_id: str,
+    message_id: Optional[str],
+    script_id: str
+):
+    """Async task: execute Home Assistant script"""
+    try:
+        client = HomeAssistantClient()
+        try:
+            # Scripts are called via script domain, service name is the script entity_id
+            # If script_id doesn't start with "script.", add it
+            if not script_id.startswith("script."):
+                script_entity_id = f"script.{script_id}"
+            else:
+                script_entity_id = script_id
+            
+            result = await client.call_service("script", "turn_on", entity_id=script_entity_id)
+            
+            response_text = t("script_executed", script_id=script_entity_id)
+        except Exception as e:
+            logger.error(f"Error executing script {script_id}: {e}", exc_info=True)
+            response_text = t("script_execution_failed", script_id=script_id, error=str(e))
+        finally:
+            await client.close()
+        
+        send_response(ws, group_id, message_id, response_text)
+    except Exception as e:
+        logger.error(f"Error in script_task: {e}", exc_info=True)
+        send_response(ws, group_id, message_id, t("error_processing_command", error=str(e)))
+
+
+def script_handler(ws: WebSocketApp, message: dict):
+    """Handle /script command"""
+    if not _is_sender_allowed(message):
+        return
+    
+    group_id = message["group_id"]
+    message_id = message.get("message_id")
+    raw_message = message.get("raw_message", "").strip()
+    
+    # Extract script ID
+    if not raw_message.startswith("/script "):
+        response_text = t("script_usage")
+        send_response(ws, group_id, message_id, response_text)
+        return
+    
+    script_id = raw_message[8:].strip()  # Remove "/script "
+    if not script_id:
+        response_text = t("script_usage")
+        send_response(ws, group_id, message_id, response_text)
+        return
+    
+    task = _script_task(ws, group_id, message_id, script_id)
+    thread = threading.Thread(target=run_async_task, args=(task,), daemon=True)
+    thread.start()
+
+
 def _get_commands_list() -> List[Dict[str, str]]:
     """Get list of all supported commands with descriptions
     
@@ -513,6 +577,11 @@ def _get_commands_list() -> List[Dict[str, str]]:
             "command": "/switch",
             "description": t("switch_command_description"),
             "emoji": "🔌"
+        },
+        {
+            "command": "/script <script_id>",
+            "description": t("script_command_description"),
+            "emoji": "📜"
         },
         {
             "command": "/search <query>",
@@ -708,6 +777,8 @@ def on_message(ws, message):
         light_handler(ws, message)
     elif raw_message == "/switch":
         switch_handler(ws, message)
+    elif raw_message.startswith("/script "):
+        script_handler(ws, message)
     elif raw_message.startswith("/search "):
         search_handler(ws, message)
     elif raw_message == "/help":

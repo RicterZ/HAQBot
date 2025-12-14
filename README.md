@@ -7,7 +7,7 @@ QQ Bot for controlling Home Assistant devices via natural language conversation.
 ## Features
 
 - **Natural Language Control**: Control Home Assistant devices through text or voice messages in QQ groups
-- **Direct Command Control**: Fast device control via commands (`/turnon`, `/turnoff`, `/toggle`) without LLM processing
+- **Direct Command Control**: Fast device control via commands (`/turnon`, `/turnoff`, `/toggle`, `/script`) without LLM processing
 - **Webhook Notifications**: Home Assistant can send proactive notifications to QQ groups via webhook API
 - **Voice Recognition**: Automatically transcribes voice messages using Tencent Cloud ASR API (optional)
 - **Multimodal Support**: Send text messages with files or video streams through webhook
@@ -137,10 +137,14 @@ The bot supports direct commands for faster device control without LLM processin
 - `/toggle <entity_id> [<entity_id2> ...]` - Toggle device state(s)
   - Toggles the state of specified device(s)
 
+- `/script <script_id>` - Execute Home Assistant script
+  - Executes a Home Assistant script by script ID or entity ID
+  - Example: `/script my_script` or `/script script.my_script`
+
 #### Information Commands
 
 - `/info` - Get Home Assistant context information
-  - Shows active lights, climate devices, temperature, humidity, and important statuses
+  - Shows active lights, climate devices, ambient temperature (grouped by area), humidity, air quality, daily energy consumption, weather, and important statuses
 
 - `/light` - List all light devices
   - Groups devices by area
@@ -167,7 +171,7 @@ The bot supports direct commands for faster device control without LLM processin
 
 - **Quoted Names**: Use quotes for entity names with spaces: `/turnon "Living Room Light"`
 
-- **Permission Control**: If `ALLOWED_SENDERS` is set, only specified QQ users can use control commands (`/turnon`, `/turnoff`, `/toggle`). Information commands (`/info`, `/light`, `/switch`, `/help`) are available to everyone.
+- **Permission Control**: If `ALLOWED_SENDERS` is set, only specified QQ users can use control commands (`/turnon`, `/turnoff`, `/toggle`, `/script`). Information commands (`/info`, `/light`, `/switch`, `/search`, `/help`) are available to everyone.
 
 - **Duplicate Alias Warning**: If multiple entities share the same alias, the bot will warn you but still control the first match
 

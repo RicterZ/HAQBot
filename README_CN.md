@@ -7,7 +7,7 @@
 ## 功能特性
 
 - **自然语言控制**：在 QQ 群中通过文本或语音消息控制 Home Assistant 设备
-- **直接命令控制**：通过命令（`/turnon`、`/turnoff`、`/toggle`）快速控制设备，无需 LLM 处理
+- **直接命令控制**：通过命令（`/turnon`、`/turnoff`、`/toggle`、`/script`）快速控制设备，无需 LLM 处理
 - **Webhook 通知**：Home Assistant 可通过 webhook API 主动向 QQ 群发送通知
 - **语音识别**：使用腾讯云 ASR API 自动转录音频消息（可选）
 - **多模态支持**：通过 webhook 发送文本消息及文件或视频流
@@ -137,10 +137,14 @@ TENCENT_ASR_REGION=
 - `/toggle <entity_id> [<entity_id2> ...]` - 切换设备状态
   - 切换指定设备的状态
 
+- `/script <script_id>` - 执行 Home Assistant 脚本
+  - 通过脚本 ID 或实体 ID 执行 Home Assistant 脚本
+  - 示例：`/script my_script` 或 `/script script.my_script`
+
 #### 信息查询命令
 
 - `/info` - 获取 Home Assistant 环境信息
-  - 显示开启的灯光、空调设备、温度、湿度和其他重要状态
+  - 显示开启的灯光、空调设备、环境温度（按区域分组）、湿度、空气质量、日耗电量、天气和其他重要状态
 
 - `/light` - 列出所有灯光设备
   - 按区域分组设备
@@ -167,7 +171,7 @@ TENCENT_ASR_REGION=
 
 - **引号名称**：使用引号包裹带空格的实体名称：`/turnon "Living Room Light"`
 
-- **权限控制**：如果设置了 `ALLOWED_SENDERS`，只有指定的 QQ 用户可以使用控制命令（`/turnon`、`/turnoff`、`/toggle`）。信息命令（`/info`、`/light`、`/switch`、`/search`、`/help`）对所有用户开放。
+- **权限控制**：如果设置了 `ALLOWED_SENDERS`，只有指定的 QQ 用户可以使用控制命令（`/turnon`、`/turnoff`、`/toggle`、`/script`）。信息命令（`/info`、`/light`、`/switch`、`/search`、`/help`）对所有用户开放。
 
 - **重复别名警告**：如果多个实体共享相同的别名，机器人会警告你，但仍会控制第一个匹配项
 

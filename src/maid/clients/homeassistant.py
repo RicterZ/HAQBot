@@ -385,6 +385,7 @@ class HomeAssistantClient:
                 "temperature_sensors": [],
                 "humidity_sensors": [],
                 "air_quality_sensors": [],
+                "energy_sensors": [],
                 "weather": [],
                 "important_binary_sensors": []
             }
@@ -449,6 +450,14 @@ class HomeAssistantClient:
                             "unit": unit or "",
                             "device_class": device_class
                         })
+                    elif device_class == "energy" or "energy" in entity_id.lower() or "consumption" in entity_id.lower() or "daily" in entity_id.lower():
+                        # Check if it's daily energy consumption (not instantaneous power)
+                        if "daily" in entity_id.lower() or "day" in friendly_name.lower() or "日" in friendly_name:
+                            context["energy_sensors"].append({
+                                "friendly_name": friendly_name,
+                                "value": entity_state,
+                                "unit": unit or "kWh"
+                            })
                 
                 elif domain == "weather":
                     temperature = attributes.get("temperature")
