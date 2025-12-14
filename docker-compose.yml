@@ -10,6 +10,7 @@ services:
       - "8080:8080"
     volumes:
       - ./.env.local:/app/.env:ro
+      - ./data/napcat/videos:/data/napcat/videos
     hostname: homeassistant-qq
     networks:
       - homeassistant-qq-network
@@ -27,6 +28,7 @@ services:
       - ./data/napcat/data:/app/.config/QQ/NapCat/data
       - ./data/napcat/config:/app/napcat/config
       - ./data/cache:/cache
+      - ./data/napcat/videos:/data/napcat/videos
     mac_address: "02:42:ac:14:00:02"
     hostname: napcat
     networks:
