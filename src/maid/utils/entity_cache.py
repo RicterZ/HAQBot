@@ -9,7 +9,7 @@ from maid.utils.i18n import t
 _entity_cache: Optional[List[Dict[str, Any]]] = None
 _device_cache: Optional[List[Dict[str, Any]]] = None
 _area_cache: Optional[Dict[str, Dict[str, Any]]] = None
-_entity_registry_cache: Optional[Dict[str, Dict[str, Any]]] = None
+_entity_areas_cache: Optional[Dict[str, str]] = None  # entity_id -> area_name
 _cache_lock = Lock()
 _cache_initialized = False
 
@@ -20,7 +20,7 @@ async def load_entity_cache() -> bool:
     Returns:
         True if cache loaded successfully, False otherwise
     """
-    global _entity_cache, _device_cache, _area_cache, _entity_registry_cache, _cache_initialized
+    global _entity_cache, _device_cache, _area_cache, _entity_areas_cache, _cache_initialized
     
     try:
         # Import here to avoid circular dependency
@@ -44,21 +44,22 @@ async def load_entity_cache() -> bool:
             except Exception as area_error:
                 logger.debug(f"Failed to get areas from API: {area_error}")
             
-            entity_registry = {}
+            entity_areas = {}
             try:
-                entity_registry = await client.get_entity_registry()
-                logger.info(f"Loaded {len(entity_registry)} entities from registry")
-                if entity_registry:
-                    entities_with_area = sum(1 for e in entity_registry.values() if e.get("area_id"))
-                    logger.info(f"Entity registry: {entities_with_area}/{len(entity_registry)} entities have area_id")
-            except Exception as reg_error:
-                logger.warning(f"Failed to get entity registry: {reg_error}")
+                entity_areas = await client.get_entity_areas()
+                logger.info(f"Loaded area information for {len(entity_areas)} entities")
+                if entity_areas:
+                    entities_with_area = sum(1 for area in entity_areas.values() if area)
+                    logger.info(f"Entity areas: {entities_with_area}/{len(entity_areas)} entities have area")
+            except Exception as area_error:
+                logger.warning(f"Failed to get entity areas: {area_error}")
+                logger.warning("Entity area information is required for area grouping. Devices will be shown as ungrouped.")
             
             with _cache_lock:
                 _entity_cache = states
                 _device_cache = devices
                 _area_cache = areas
-                _entity_registry_cache = entity_registry
+                _entity_areas_cache = entity_areas
                 _cache_initialized = True
             
             logger.info(f"Entity cache loaded: {len(states)} entities, {len(devices)} devices, {len(areas)} areas")
@@ -141,14 +142,14 @@ def get_area_cache() -> Optional[Dict[str, Dict[str, Any]]]:
         return _area_cache
 
 
-def get_entity_registry_cache() -> Optional[Dict[str, Dict[str, Any]]]:
-    """Get cached entity registry
+def get_entity_areas_cache() -> Optional[Dict[str, str]]:
+    """Get cached entity areas (entity_id -> area_name)
     
     Returns:
-        Cached entity registry dictionary or None if not initialized
+        Cached entity areas dictionary or None if not initialized
     """
     with _cache_lock:
-        return _entity_registry_cache
+        return _entity_areas_cache
 
 
 def get_devices_by_domain(domain: str) -> Dict[Optional[str], List[Dict[str, Any]]]:
@@ -162,19 +163,15 @@ def get_devices_by_domain(domain: str) -> Dict[Optional[str], List[Dict[str, Any
     """
     cache = get_entity_cache()
     device_cache = get_device_cache()
-    entity_registry = get_entity_registry_cache() or {}
+    entity_areas = get_entity_areas_cache() or {}
     if not cache:
         return {}
     
-    # Log entity registry status for debugging
-    if not entity_registry:
-        logger.warning("Entity registry is empty or not loaded")
+    # Log entity areas status for debugging
+    if not entity_areas:
+        logger.warning("Entity areas cache is empty or not loaded")
     else:
-        logger.debug(f"Using entity registry with {len(entity_registry)} entities")
-        # Log sample entity IDs to verify format
-        sample_ids = list(entity_registry.keys())[:3]
-        if sample_ids:
-            logger.debug(f"Sample entity IDs in registry: {sample_ids}")
+        logger.debug(f"Using entity areas cache with {len(entity_areas)} entities")
     
     devices_by_area = {}
     device_entities_map = {}
@@ -209,28 +206,31 @@ def get_devices_by_domain(domain: str) -> Dict[Optional[str], List[Dict[str, Any
             device_id = f"virtual_{entity_id}"
         
         if device_id not in device_entities_map:
-            # Get area_id from device_cache first, then entity registry, then entity attributes
-            area_id = device_area_map.get(device_id)
+            # Get area_name from entity_areas cache (from template API)
+            area_name = entity_areas.get(entity_id, "")
+            
+            # Convert area_name to area_id by looking up in area_cache
+            area_id = None
+            if area_name:
+                # Find area_id by matching area name in area_cache
+                area_cache = get_area_cache() or {}
+                for cached_area_id, area_info in area_cache.items():
+                    if isinstance(area_info, dict) and area_info.get("name") == area_name:
+                        area_id = cached_area_id
+                        break
+                
+                # If not found in cache, use area_name as area_id (fallback)
+                if not area_id:
+                    area_id = area_name
+                    logger.debug(f"Using area_name '{area_name}' as area_id for entity {entity_id}")
+            
+            # Fallback: try to get from device_cache
             if not area_id:
-                # Try to get from entity registry (entity registry contains area_id)
-                entity_info = entity_registry.get(entity_id)
-                if entity_info:
-                    area_id = entity_info.get("area_id")
-                    if area_id:
-                        logger.debug(f"Found area_id {area_id} for entity {entity_id} from entity registry")
-                    else:
-                        logger.debug(f"Entity {entity_id} in registry but has no area_id")
-                else:
-                    # Check if entity registry is empty or entity_id format doesn't match
-                    if not entity_registry:
-                        logger.debug(f"Entity registry is empty, cannot find {entity_id}")
-                    else:
-                        # Log first few entity IDs from registry to compare format
-                        sample_registry_ids = list(entity_registry.keys())[:3]
-                        logger.debug(f"Entity {entity_id} not found in registry. Sample registry IDs: {sample_registry_ids}")
+                area_id = device_area_map.get(device_id)
+            
+            # Fallback: try to get from entity attributes
             if not area_id:
-                # Try to get from entity attributes (though HA states API usually doesn't include this)
-                area_id = attributes.get("area_id")
+                area_id = attributes.get("area_id") or attributes.get("area") or attributes.get("room")
             
             device_name = (
                 device_name_map.get(device_id) or
@@ -302,8 +302,7 @@ def get_all_entities() -> List[Dict[str, Any]]:
     if not cache:
         return []
     
-    with _cache_lock:
-        registry = _entity_registry_cache or {}
+    # Entity areas cache not needed for get_all_entities
     
     entities = []
     for state in cache:

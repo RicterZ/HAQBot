@@ -380,19 +380,14 @@ async def _list_domain_task(
             
             for area_id, devices in sorted_areas:
                 if area_id:
-                    # Try to get area name from cache, handle both string and dict formats
-                    area_info = area_cache.get(area_id)
+                    # area_id might be area_name (from template API) or actual area_id
+                    # Try to get area name from cache first
+                    area_info = area_cache.get(str(area_id))
                     if isinstance(area_info, dict):
                         area_name = area_info.get("name") or area_info.get("area_name") or str(area_id)
                     else:
-                        # If area_id is not in cache, try to find by converting to string
-                        area_id_str = str(area_id)
-                        area_info = area_cache.get(area_id_str)
-                        if isinstance(area_info, dict):
-                            area_name = area_info.get("name") or area_info.get("area_name") or area_id_str
-                        else:
-                            # Fallback: use area_id as name
-                            area_name = area_id_str
+                        # If not found in cache, area_id might already be area_name
+                        area_name = str(area_id)
                     lines.append(f"\n{t('area')}: {area_name}")
                 else:
                     lines.append(f"\n{t('ungrouped')}")

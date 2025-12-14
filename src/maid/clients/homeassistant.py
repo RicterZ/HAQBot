@@ -211,57 +211,61 @@ class HomeAssistantClient:
             logger.error(f"Error getting devices: {e}")
             raise
 
-    async def get_entity_registry(self) -> Dict[str, Dict[str, Any]]:
-        """Get all entities from entity registry
+    async def get_entity_areas(self) -> Dict[str, str]:
+        """Get area information for all entities using template API
         
         Returns:
-            Dictionary mapping entity_id to entity registry information
+            Dictionary mapping entity_id to area_name
         """
-        url = "/api/config/entity_registry/list"
+        template = """
+{
+  "entities": [
+    {%- for entity_id in states | map(attribute='entity_id') | list -%}
+    {
+      "entity_id": "{{ entity_id }}",
+      "area": "{{ area_name(entity_id) if area_name(entity_id) else '' }}"
+    }{%- if not loop.last -%},{%- endif -%}
+    {%- endfor -%}
+  ]
+}
+"""
+        url = "/api/template"
         
         try:
-            logger.debug("Fetching all entities from entity registry")
+            logger.debug("Fetching entity area information using template API")
             
-            response = await self.client.get(url)
+            response = await self.client.post(url, json={"template": template})
             response.raise_for_status()
             
-            entities = response.json()
-            logger.info(f"Received {len(entities)} entities from registry")
-            
-            # Log sample entity structure for debugging
-            if entities and logger.isEnabledFor(logging.DEBUG):
-                sample = entities[0]
-                logger.debug(f"Sample entity registry structure: {list(sample.keys())}")
-                logger.debug(f"Sample entity_id: {sample.get('entity_id')}")
-                if "area_id" in sample:
-                    logger.debug(f"Sample entity area_id: {sample.get('area_id')}")
+            result = response.json()
+            entities = result.get("entities", [])
+            logger.info(f"Received area information for {len(entities)} entities")
             
             # Convert list to dict for easier lookup
-            entities_dict = {}
+            entity_areas = {}
             entities_with_area = 0
             for entity in entities:
                 entity_id = entity.get("entity_id")
+                area_name = entity.get("area", "")
                 if entity_id:
-                    entities_dict[entity_id] = entity
-                    if entity.get("area_id"):
+                    entity_areas[entity_id] = area_name
+                    if area_name:
                         entities_with_area += 1
-                else:
-                    logger.warning(f"Entity in registry missing entity_id: {entity}")
             
-            logger.info(f"Entity registry: {entities_with_area}/{len(entities)} entities have area_id")
-            if entities_dict:
+            logger.info(f"Entity areas: {entities_with_area}/{len(entities)} entities have area")
+            if entity_areas:
                 # Log a few sample entity IDs to verify format
-                sample_ids = list(entities_dict.keys())[:5]
-                logger.debug(f"Sample entity IDs in registry: {sample_ids}")
-            return entities_dict
+                sample_ids = list(entity_areas.keys())[:5]
+                logger.debug(f"Sample entity IDs with areas: {sample_ids}")
+            return entity_areas
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 404:
-                logger.debug("Entity registry API not available")
+                logger.warning("Template API not available (404). Cannot get area information.")
                 return {}
-            logger.error(f"HA get_entity_registry request failed: {e.response.status_code} - {e.response.text}")
+            logger.error(f"HA template API request failed: {e.response.status_code} - {e.response.text}")
             raise
         except Exception as e:
-            logger.error(f"Error getting entity registry: {e}")
+            logger.error(f"Error getting entity areas: {e}")
             raise
 
     async def get_areas(self) -> Dict[str, Dict[str, Any]]:
