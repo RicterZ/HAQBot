@@ -28,20 +28,12 @@ async def load_entity_cache() -> bool:
             logger.info("Loading entity cache from Home Assistant...")
             states = await client.get_states()
             
-            # Try to load registry, but don't fail if it's not available
-            registry = {}
-            try:
-                registry = await client.get_entity_registry()
-            except Exception as reg_error:
-                logger.warning(f"Failed to load entity registry (may not be available): {reg_error}")
-                registry = {}
-            
             with _cache_lock:
                 _entity_cache = states
-                _entity_registry_cache = registry
+                _entity_registry_cache = {}  # Not used, kept for compatibility
                 _cache_initialized = True
             
-            logger.info(f"Entity cache loaded: {len(states)} entities, {len(registry)} registry entries")
+            logger.info(f"Entity cache loaded: {len(states)} entities")
             return True
         finally:
             await client.close()
@@ -86,8 +78,16 @@ def get_all_entities() -> List[Dict[str, Any]]:
         friendly_name = attributes.get("friendly_name", "")
         domain = entity_id.split(".")[0] if "." in entity_id else ""
         
-        registry_entry = registry.get(entity_id, {})
-        aliases = registry_entry.get("aliases", [])
+        # Try to extract aliases from attributes
+        aliases = []
+        for attr_key in ["aliases", "alias", "device_aliases"]:
+            attr_value = attributes.get(attr_key)
+            if attr_value:
+                if isinstance(attr_value, list):
+                    aliases.extend([str(a) for a in attr_value if a])
+                elif isinstance(attr_value, str):
+                    aliases.append(attr_value)
+                break
         
         entities.append({
             "entity_id": entity_id,
@@ -103,10 +103,9 @@ def get_all_entities() -> List[Dict[str, Any]]:
 def find_entity_by_alias(alias: str) -> Optional[str]:
     """Find entity ID by alias using cached entities
     
-    Supports three methods:
+    Supports two methods:
     1. entity_id: If input contains '.', treat as entity_id directly
     2. friendly_name: Match against entity's friendly_name attribute
-    3. alias: Match against entity registry aliases
     
     Args:
         alias: Alias name or entity ID to search for
@@ -140,13 +139,17 @@ def find_entity_by_alias(alias: str) -> Optional[str]:
             logger.debug(f"Found entity {entity_id} by friendly_name: {friendly_name}")
             return entity_id
         
-        # Method 3: Check if alias matches entity registry aliases
-        registry_entry = registry.get(entity_id, {})
-        aliases = registry_entry.get("aliases", [])
-        if aliases:
-            for entity_alias in aliases:
-                if entity_alias.lower() == alias_lower:
-                    logger.debug(f"Found entity {entity_id} by alias: {entity_alias}")
+        # Method 3: Check if alias matches any attribute that might contain aliases
+        # Some integrations store aliases in attributes
+        for attr_key, attr_value in attributes.items():
+            if attr_key in ["aliases", "alias", "device_aliases"]:
+                if isinstance(attr_value, list):
+                    for entity_alias in attr_value:
+                        if isinstance(entity_alias, str) and entity_alias.lower() == alias_lower:
+                            logger.debug(f"Found entity {entity_id} by alias in {attr_key}: {entity_alias}")
+                            return entity_id
+                elif isinstance(attr_value, str) and attr_value.lower() == alias_lower:
+                    logger.debug(f"Found entity {entity_id} by alias in {attr_key}: {attr_value}")
                     return entity_id
         
         # Also check if alias matches part of entity_id (case-insensitive)
