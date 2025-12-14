@@ -221,11 +221,16 @@ class HomeAssistantClient:
             logger.debug(f"Received {len(areas)} areas")
             
             # Convert list to dict for easier lookup
+            # Store both string and original format for compatibility
             areas_dict = {}
             for area in areas:
                 area_id = area.get("area_id")
                 if area_id:
-                    areas_dict[area_id] = area
+                    # Store with string key for consistent lookup
+                    areas_dict[str(area_id)] = area
+                    # Also store with original key if it's different
+                    if str(area_id) != area_id:
+                        areas_dict[area_id] = area
             
             return areas_dict
         except httpx.HTTPStatusError as e:

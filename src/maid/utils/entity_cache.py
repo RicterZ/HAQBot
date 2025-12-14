@@ -188,7 +188,11 @@ def get_devices_by_domain(domain: str) -> Dict[Optional[str], List[Dict[str, Any
     
     for device_id, device_info in device_entities_map.items():
         area_id = device_info["area_id"]
-        area_key = area_id if area_id else None
+        # Normalize area_id to string for consistent lookup
+        if area_id is not None:
+            area_key = str(area_id)
+        else:
+            area_key = None
         
         if area_key not in devices_by_area:
             devices_by_area[area_key] = []
