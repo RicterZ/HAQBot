@@ -397,10 +397,13 @@ def find_entity_by_alias(alias: str) -> Tuple[Optional[str], List[str]]:
         entity_aliases_cache = get_entity_aliases_cache() or {}
         if entity_id in entity_aliases_cache:
             aliases = entity_aliases_cache[entity_id]
+            if aliases:
+                logger.debug(f"Entity {entity_id} has {len(aliases)} aliases: {aliases}")
             for entity_alias in aliases:
                 if isinstance(entity_alias, str) and entity_alias.lower() == alias_lower:
                     logger.debug(f"Found entity {entity_id} by entity registry alias: {entity_alias}")
-                    matches.append(entity_id)
+                    if entity_id not in matches:
+                        matches.append(entity_id)
                     break
         
         # Method 4: Check if alias matches any attribute that might contain aliases
@@ -439,11 +442,30 @@ def find_entity_by_alias(alias: str) -> Tuple[Optional[str], List[str]]:
     if not matches:
         logger.debug(f"No entity found for alias: {alias}")
         logger.debug(f"Searched through {len(cache)} entities")
-        # Log a sample of climate entities for debugging
+        
+        # Check if aliases cache is loaded
+        entity_aliases_cache = get_entity_aliases_cache() or {}
+        logger.debug(f"Aliases cache has {len(entity_aliases_cache)} entities")
+        
+        # Log climate entities with aliases for debugging
         climate_entities = [s for s in cache if s.get("entity_id", "").startswith("climate.")]
         if climate_entities:
             sample = climate_entities[0]
-            logger.debug(f"Sample climate entity: {sample.get('entity_id')}, attributes keys: {list(sample.get('attributes', {}).keys())}")
+            sample_id = sample.get('entity_id')
+            logger.debug(f"Sample climate entity: {sample_id}, attributes keys: {list(sample.get('attributes', {}).keys())}")
+            if sample_id in entity_aliases_cache:
+                sample_aliases = entity_aliases_cache[sample_id]
+                logger.debug(f"Sample climate entity {sample_id} aliases: {sample_aliases}")
+        
+        # Check if any climate entity has the alias
+        for climate_entity in climate_entities:
+            climate_id = climate_entity.get("entity_id", "")
+            if climate_id in entity_aliases_cache:
+                aliases = entity_aliases_cache[climate_id]
+                for entity_alias in aliases:
+                    if isinstance(entity_alias, str) and alias_lower in entity_alias.lower():
+                        logger.debug(f"Found potential match: {climate_id} has alias '{entity_alias}' (searching for '{alias}')")
+        
         return None, []
     
     # Return first match and all matches

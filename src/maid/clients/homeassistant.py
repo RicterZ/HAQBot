@@ -223,7 +223,7 @@ class HomeAssistantClient:
     {%- for entity_id in states | map(attribute='entity_id') | list -%}
     {
       "entity_id": "{{ entity_id }}",
-      "aliases": {{ entity_registry(entity_id).aliases | default([]) | tojson }}
+      "aliases": {{ (entity_registry(entity_id).aliases | default([])) if entity_registry(entity_id) else [] | tojson }}
     }{%- if not loop.last -%},{%- endif -%}
     {%- endfor -%}
   ]
@@ -238,7 +238,17 @@ class HomeAssistantClient:
             response.raise_for_status()
             
             result = response.json()
-            entities = result.get("entities", [])
+            logger.debug(f"Template API response: {result}")
+            
+            # Template API returns the result directly, not wrapped in a key
+            if isinstance(result, list):
+                entities = result
+            elif isinstance(result, dict) and "entities" in result:
+                entities = result.get("entities", [])
+            else:
+                logger.warning(f"Unexpected template API response format: {type(result)}")
+                entities = []
+            
             logger.info(f"Received alias information for {len(entities)} entities")
             
             # Convert list to dict for easier lookup
@@ -251,10 +261,15 @@ class HomeAssistantClient:
                     if isinstance(aliases, list) and aliases:
                         entity_aliases[entity_id] = [str(a) for a in aliases if a]
                         entities_with_aliases += 1
+                        logger.debug(f"Entity {entity_id} has aliases: {aliases}")
                     else:
                         entity_aliases[entity_id] = []
             
             logger.info(f"Entity aliases: {entities_with_aliases}/{len(entities)} entities have aliases")
+            if entities_with_aliases > 0:
+                # Log a few sample entities with aliases
+                sample_entities = [(eid, aliases) for eid, aliases in entity_aliases.items() if aliases][:3]
+                logger.debug(f"Sample entities with aliases: {sample_entities}")
             return entity_aliases
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 404:
