@@ -308,9 +308,9 @@ async def _info_task(ws: WebSocketApp, group_id: str, message_id: Optional[str])
                 for light in context["lights_on"]:
                     brightness = light.get("brightness")
                     if brightness:
-                        lines.append(f"  �?{light['friendly_name']} ({brightness}%)")
+                        lines.append(f"  •{light['friendly_name']} ({brightness}%)")
                     else:
-                        lines.append(f"  �?{light['friendly_name']}")
+                        lines.append(f"  •{light['friendly_name']}")
             
             if context["climate"]:
                 lines.append(f"\n{t('climate_devices')}:")
@@ -326,17 +326,17 @@ async def _info_task(ws: WebSocketApp, group_id: str, message_id: Optional[str])
                         parts.append(f"{t('fan')}: {climate['fan_mode']}")
                     
                     status = " - ".join(parts) if parts else climate.get("hvac_mode", "")
-                    lines.append(f"  �?{climate['friendly_name']}: {status}")
+                    lines.append(f"  •{climate['friendly_name']}: {status}")
             
             if context["temperature_sensors"]:
                 lines.append(f"\n{t('temperature')}:")
                 for temp in context["temperature_sensors"][:5]:
-                    lines.append(f"  �?{temp['friendly_name']}: {temp['value']} {temp['unit']}")
+                    lines.append(f"  •{temp['friendly_name']}: {temp['value']} {temp['unit']}")
             
             if context["humidity_sensors"]:
                 lines.append(f"\n{t('humidity')}:")
                 for humidity in context["humidity_sensors"][:5]:
-                    lines.append(f"  �?{humidity['friendly_name']}: {humidity['value']} {humidity['unit']}")
+                    lines.append(f"  •{humidity['friendly_name']}: {humidity['value']} {humidity['unit']}")
             
             if context["important_binary_sensors"]:
                 lines.append(f"\n{t('important_status')}:")
@@ -345,13 +345,13 @@ async def _info_task(ws: WebSocketApp, group_id: str, message_id: Optional[str])
                     icon_map = {
                         "door": "🚪",
                         "window": "🪟",
-                        "motion": "👁�?,
+                        "motion": "👁️",
                         "occupancy": "🏠",
                         "smoke": "🔥",
                         "gas": "⚠️",
                         "moisture": "💧"
                     }
-                    icon = icon_map.get(device_class, "�?)
+                    icon = icon_map.get(device_class, "•")
                     lines.append(f"  {icon} {sensor['friendly_name']}")
             
             if len(lines) == 1:
@@ -412,7 +412,7 @@ async def _list_domain_task(
                 for device in devices:
                     device_name = device["device_name"]
                     state_summary = device["state_summary"]
-                    lines.append(f"  �?{device_name} - {state_summary}")
+                    lines.append(f"  •{device_name} - {state_summary}")
             
             response_text = "\n".join(lines)
         
@@ -452,7 +452,7 @@ def _get_commands_list() -> List[Dict[str, str]]:
         {
             "command": "/help",
             "description": t("help_command_description"),
-            "emoji": "�?
+            "emoji": "📋"
         },
         {
             "command": "/info",
@@ -487,7 +487,7 @@ def _get_commands_list() -> List[Dict[str, str]]:
         {
             "command": "/clear",
             "description": t("clear_command_description"),
-            "emoji": "🗑�?
+            "emoji": "🗑️"
         },
         {
             "command": "/echo <text>",
@@ -508,7 +508,7 @@ def help_handler(ws: WebSocketApp, message: dict):
     lines.append(t("help_header"))
     
     for cmd_info in commands:
-        emoji = cmd_info.get("emoji", "�?)
+        emoji = cmd_info.get("emoji", "•")
         lines.append(f"{emoji} {cmd_info['command']} - {cmd_info['description']}")
     
     response_text = "\n".join(lines)
