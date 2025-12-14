@@ -76,6 +76,13 @@ def _parse_entity_ids(raw_message: str, command_prefix: str) -> List[str]:
     return [eid.strip() for eid in args.split() if eid.strip()]
 
 
+def _extract_domain(entity_id: str) -> str:
+    """Extract domain from entity ID (e.g., 'light.xxx' -> 'light')"""
+    if '.' in entity_id:
+        return entity_id.split('.')[0]
+    return "switch"  # Default fallback
+
+
 def _get_service_action(service: str) -> str:
     """Get localized service action name"""
     action_map = {
@@ -106,7 +113,9 @@ async def _control_switch_task(
                 
                 for entity_id in entity_ids:
                     try:
-                        result = await client.call_service("switch", service, entity_id=entity_id)
+                        # Extract domain from entity_id (e.g., 'light.xxx' -> 'light')
+                        domain = _extract_domain(entity_id)
+                        result = await client.call_service(domain, service, entity_id=entity_id)
                         results.append((entity_id, True, result))
                     except Exception as e:
                         errors.append((entity_id, str(e)))
