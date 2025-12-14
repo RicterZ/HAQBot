@@ -3,6 +3,7 @@ from typing import Optional, Dict, Any, List, Tuple
 from threading import Lock
 
 from maid.utils.logger import logger
+from maid.utils.i18n import t
 
 # Global cache
 _entity_cache: Optional[List[Dict[str, Any]]] = None
@@ -194,7 +195,18 @@ def get_devices_by_domain(domain: str) -> Dict[Optional[str], List[Dict[str, Any
         
         on_count = sum(1 for s in device_info["states"] if s.lower() == "on")
         total_count = len(device_info["states"])
-        state_summary = f"{on_count}/{total_count}" if total_count > 1 else device_info["states"][0] if device_info["states"] else "unknown"
+        if total_count > 1:
+            state_summary = f"{on_count}/{total_count}"
+        else:
+            state = device_info["states"][0] if device_info["states"] else "unknown"
+            # Translate state value
+            state_lower = state.lower()
+            if state_lower == "on":
+                state_summary = t("state_on")
+            elif state_lower == "off":
+                state_summary = t("state_off")
+            else:
+                state_summary = t("state_unknown")
         
         devices_by_area[area_key].append({
             "device_name": device_info["device_name"],
