@@ -2,7 +2,7 @@ import json
 import os
 from typing import Optional, List
 
-from maid.models.message import Command, CommandType, TextMessage, VideoMessage, FileMessage, ForwardNode
+from maid.models.message import Command, CommandType, TextMessage, FileMessage, ForwardNode
 from maid.utils import CommandEncoder
 from maid.utils.logger import logger
 from maid.utils.i18n import t

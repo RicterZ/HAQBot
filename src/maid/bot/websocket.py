@@ -9,7 +9,8 @@ from websocket import WebSocketApp
 from maid.utils import CommandEncoder
 from maid.utils.logger import logger
 from maid.utils.i18n import t
-from maid.models.message import Command, CommandType, TextMessage, ReplyMessage
+from maid.utils.response import send_response, run_async_task
+from maid.models.message import Command, CommandType, TextMessage
 from maid.handlers.conversation import conversation_handler, clear_conversation_context
 from maid.bot.connection import set_ws_connection
 from maid.clients.homeassistant import HomeAssistantClient
@@ -35,7 +36,7 @@ def clear_handler(ws: WebSocketApp, message: dict):
     
     cleared = clear_conversation_context(group_id)
     response_text = t("conversation_context_cleared") if cleared else t("no_conversation_context")
-    _send_response(ws, group_id, message_id, response_text)
+    send_response(ws, group_id, message_id, response_text)
 
 
 def _get_allowed_senders() -> Optional[List[str]]:
@@ -71,44 +72,13 @@ def _is_sender_allowed(message: dict) -> bool:
     user_id = message.get("user_id") or message.get("sender_id")
     
     if not user_id:
-        # Log the message structure for debugging
         logger.warning(f"Cannot determine sender QQ number from message. Available keys: {list(message.keys())}")
         return False
     
     user_id_str = str(user_id)
-    is_allowed = user_id_str in allowed_senders
-    
-    if not is_allowed:
-        logger.info(f"User {user_id_str} is not in allowed senders list: {allowed_senders}")
-    
-    return is_allowed
+    return user_id_str in allowed_senders
 
 
-def _send_response(ws: WebSocketApp, group_id: str, message_id: Optional[str], response_text: str):
-    """Helper function to send response message"""
-    message_segments = []
-    if message_id:
-        message_segments.append(ReplyMessage(message_id))
-    message_segments.append(TextMessage(response_text))
-    
-    command = Command(
-        action=CommandType.send_group_msg,
-        params={
-            "group_id": group_id,
-            "message": [msg.as_dict() for msg in message_segments]
-        }
-    )
-    ws.send(json.dumps(command, cls=CommandEncoder))
-
-
-def _run_async_task(coro):
-    """Helper function to run async task in separate thread"""
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    try:
-        loop.run_until_complete(coro)
-    finally:
-        loop.close()
 
 
 def _parse_entity_ids(raw_message: str, command_prefix: str) -> List[str]:
@@ -248,10 +218,10 @@ async def _control_switch_task(
         finally:
             await client.close()
         
-        _send_response(ws, group_id, message_id, response_text)
+        send_response(ws, group_id, message_id, response_text)
     except Exception as e:
         logger.error(f"Error in control_switch_task: {e}", exc_info=True)
-        _send_response(ws, group_id, message_id, t("error_processing_command", error=str(e)))
+        send_response(ws, group_id, message_id, t("error_processing_command", error=str(e)))
 
 
 def turn_on_handler(ws: WebSocketApp, message: dict):
@@ -265,7 +235,7 @@ def turn_on_handler(ws: WebSocketApp, message: dict):
     
     entity_ids = _parse_entity_ids(raw_message, "/turnon ")
     task = _control_switch_task(ws, group_id, message_id, "turn_on", entity_ids)
-    thread = threading.Thread(target=_run_async_task, args=(task,), daemon=True)
+    thread = threading.Thread(target=run_async_task, args=(task,), daemon=True)
     thread.start()
 
 
@@ -280,7 +250,7 @@ def turn_off_handler(ws: WebSocketApp, message: dict):
     
     entity_ids = _parse_entity_ids(raw_message, "/turnoff ")
     task = _control_switch_task(ws, group_id, message_id, "turn_off", entity_ids)
-    thread = threading.Thread(target=_run_async_task, args=(task,), daemon=True)
+    thread = threading.Thread(target=run_async_task, args=(task,), daemon=True)
     thread.start()
 
 
@@ -295,7 +265,7 @@ def toggle_handler(ws: WebSocketApp, message: dict):
     
     entity_ids = _parse_entity_ids(raw_message, "/toggle ")
     task = _control_switch_task(ws, group_id, message_id, "toggle", entity_ids)
-    thread = threading.Thread(target=_run_async_task, args=(task,), daemon=True)
+    thread = threading.Thread(target=run_async_task, args=(task,), daemon=True)
     thread.start()
 
 
@@ -371,10 +341,10 @@ async def _info_task(ws: WebSocketApp, group_id: str, message_id: Optional[str])
         finally:
             await client.close()
         
-        _send_response(ws, group_id, message_id, response_text)
+        send_response(ws, group_id, message_id, response_text)
     except Exception as e:
         logger.error(f"Error in info_task: {e}", exc_info=True)
-        _send_response(ws, group_id, message_id, t("error_processing_command", error=str(e)))
+        send_response(ws, group_id, message_id, t("error_processing_command", error=str(e)))
 
 
 def info_handler(ws: WebSocketApp, message: dict):
@@ -383,7 +353,7 @@ def info_handler(ws: WebSocketApp, message: dict):
     message_id = message.get("message_id")
     
     task = _info_task(ws, group_id, message_id)
-    thread = threading.Thread(target=_run_async_task, args=(task,), daemon=True)
+    thread = threading.Thread(target=run_async_task, args=(task,), daemon=True)
     thread.start()
 
 
@@ -422,10 +392,10 @@ async def _list_domain_task(
             
             response_text = "\n".join(lines)
         
-        _send_response(ws, group_id, message_id, response_text)
+        send_response(ws, group_id, message_id, response_text)
     except Exception as e:
         logger.error(f"Error in list_domain_task: {e}", exc_info=True)
-        _send_response(ws, group_id, message_id, t("error_processing_command", error=str(e)))
+        send_response(ws, group_id, message_id, t("error_processing_command", error=str(e)))
 
 
 def light_handler(ws: WebSocketApp, message: dict):
@@ -434,7 +404,7 @@ def light_handler(ws: WebSocketApp, message: dict):
     message_id = message.get("message_id")
     
     task = _list_domain_task(ws, group_id, message_id, "light")
-    thread = threading.Thread(target=_run_async_task, args=(task,), daemon=True)
+    thread = threading.Thread(target=run_async_task, args=(task,), daemon=True)
     thread.start()
 
 
@@ -444,7 +414,7 @@ def switch_handler(ws: WebSocketApp, message: dict):
     message_id = message.get("message_id")
     
     task = _list_domain_task(ws, group_id, message_id, "switch")
-    thread = threading.Thread(target=_run_async_task, args=(task,), daemon=True)
+    thread = threading.Thread(target=run_async_task, args=(task,), daemon=True)
     thread.start()
 
 
@@ -518,7 +488,7 @@ def help_handler(ws: WebSocketApp, message: dict):
         lines.append(f"{emoji} {cmd_info['command']} - {cmd_info['description']}")
     
     response_text = "\n".join(lines)
-    _send_response(ws, group_id, message_id, response_text)
+    send_response(ws, group_id, message_id, response_text)
 
 
 def on_error(ws, error):

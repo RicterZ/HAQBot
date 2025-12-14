@@ -1,5 +1,3 @@
-import asyncio
-import json
 import re
 import threading
 from typing import Dict, Any, Optional, Tuple
@@ -9,11 +7,9 @@ from websocket import WebSocketApp
 from maid.clients.homeassistant import HomeAssistantClient
 from maid.clients.napcat import get_voice_file
 from maid.clients.tencent_asr import sentence_recognize
-from maid.utils import CommandEncoder
 from maid.utils.logger import logger
 from maid.utils.i18n import t
-from maid.models.message import Command, CommandType, TextMessage, ReplyMessage
-from maid.bot.websocket import _is_sender_allowed
+from maid.utils.response import send_response, run_async_task
 
 
 _conversation_ids: Dict[str, Optional[str]] = {}
@@ -79,21 +75,6 @@ async def process_conversation_async(text: str, group_id: str, language: Optiona
         return result
     finally:
         await client.close()
-
-
-def _send_response(ws: WebSocketApp, group_id: str, message_id: Optional[str], response_text: str):
-    message_segments = []
-    if message_id:
-        message_segments.append(ReplyMessage(message_id))
-    message_segments.append(TextMessage(response_text))
-    command = Command(
-        action=CommandType.send_group_msg,
-        params={
-            "group_id": group_id,
-            "message": [msg.as_dict() for msg in message_segments]
-        }
-    )
-    ws.send(json.dumps(command, cls=CommandEncoder))
 
 
 async def _process_conversation_task(ws: WebSocketApp, group_id: str, message_id: Optional[str], clean_text: Optional[str], record_file: Optional[str]):
@@ -164,27 +145,15 @@ async def _process_conversation_task(ws: WebSocketApp, group_id: str, message_id
         
         logger.info(f"Conversation response: {response_text[:100]}{'...' if len(response_text) > 100 else ''}")
         
-        _send_response(ws, group_id, message_id, response_text)
+        send_response(ws, group_id, message_id, response_text)
         
     except Exception as e:
         logger.error(f"Error processing conversation: {e}", exc_info=True)
         error_msg = t("error_processing_request", error=str(e))
-        _send_response(ws, group_id, message_id, error_msg)
-
-
-def _run_async_task(coro):
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    try:
-        loop.run_until_complete(coro)
-    finally:
-        loop.close()
+        send_response(ws, group_id, message_id, error_msg)
 
 
 def conversation_handler(ws: WebSocketApp, message: dict):
-    if not _is_sender_allowed(message):
-        return
-    
     group_id = message["group_id"]
     message_id = message.get("message_id")
     
@@ -194,6 +163,6 @@ def conversation_handler(ws: WebSocketApp, message: dict):
         return
     
     task = _process_conversation_task(ws, group_id, message_id, clean_text, record_file)
-    thread = threading.Thread(target=_run_async_task, args=(task,), daemon=True)
+    thread = threading.Thread(target=run_async_task, args=(task,), daemon=True)
     thread.start()
 

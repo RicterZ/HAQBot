@@ -8,7 +8,7 @@ _TRANSLATIONS: Dict[str, Dict[str, str]] = {
         # websocket.py
         "conversation_context_cleared": "对话上下文已清除",
         "no_conversation_context": "没有需要清除的对话上下文",
-        "please_specify_entity_id": "请指定实体ID。用�? /{service_name} <实体ID> [<实体ID2> ...]",
+        "please_specify_entity_id": "请指定实体ID。用法: /{service_name} <实体ID> [<实体ID2> ...]",
         "turn_on": "打开",
         "turn_off": "关闭",
         "toggle": "切换",
@@ -16,7 +16,7 @@ _TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "success_action_count": "成功{action}�?{count} 个实体。\n错误:\n{errors}",
         "success_action": "成功{action}: {entity_list}",
         "error_executing_action": "执行{action}时出错: {error}",
-        "error_processing_command": "处理命令时出�? {error}",
+        "error_processing_command": "处理命令时出错: {error}",
         "entity_not_found": "实体未找到",
         "multiple_entities_found": "⚠️ 发现 {count} 个同名实体（别名: {alias}），将控制第一个: {first}",
         "unable_to_get_context": "无法获取环境信息",
@@ -61,7 +61,7 @@ _TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "notification_sent": "通知已发送",
         "failed_to_send_notification": "发送通知失败",
         "group_id_required": "group_id 是必需的",
-        "message_or_url_required": "至少需要提�?message �?url 之一",
+        "message_or_url_required": "至少需要提供 message 或 url 之一",
         "failed_to_download_video_stream": "下载视频流失败",
         "failed_to_process_video_stream": "处理视频流失败: {error}",
         "multimodal_notification_sent": "多模态通知已发送",
@@ -184,7 +184,7 @@ def t(key: str, **kwargs) -> str:
     获取翻译文本
     
     Args:
-        key: 翻译�?        **kwargs: 用于格式化字符串的参�?        
+        key: 翻译键        **kwargs: 用于格式化字符串的参数        
     Returns:
         翻译后的文本
     """
