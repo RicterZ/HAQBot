@@ -44,11 +44,18 @@ async def load_entity_cache() -> bool:
             except Exception as area_error:
                 logger.debug(f"Failed to get areas from API: {area_error}")
             
+            entity_registry = {}
+            try:
+                entity_registry = await client.get_entity_registry()
+                logger.debug(f"Loaded {len(entity_registry)} entities from registry")
+            except Exception as reg_error:
+                logger.debug(f"Failed to get entity registry: {reg_error}")
+            
             with _cache_lock:
                 _entity_cache = states
                 _device_cache = devices
                 _area_cache = areas
-                _entity_registry_cache = {}  # Not used, kept for compatibility
+                _entity_registry_cache = entity_registry
                 _cache_initialized = True
             
             logger.info(f"Entity cache loaded: {len(states)} entities, {len(devices)} devices, {len(areas)} areas")
@@ -131,6 +138,16 @@ def get_area_cache() -> Optional[Dict[str, Dict[str, Any]]]:
         return _area_cache
 
 
+def get_entity_registry_cache() -> Optional[Dict[str, Dict[str, Any]]]:
+    """Get cached entity registry
+    
+    Returns:
+        Cached entity registry dictionary or None if not initialized
+    """
+    with _cache_lock:
+        return _entity_registry_cache
+
+
 def get_devices_by_domain(domain: str) -> Dict[Optional[str], List[Dict[str, Any]]]:
     """Get devices filtered by domain, grouped by area
     
@@ -142,6 +159,7 @@ def get_devices_by_domain(domain: str) -> Dict[Optional[str], List[Dict[str, Any
     """
     cache = get_entity_cache()
     device_cache = get_device_cache()
+    entity_registry = get_entity_registry_cache() or {}
     if not cache:
         return {}
     
@@ -178,8 +196,13 @@ def get_devices_by_domain(domain: str) -> Dict[Optional[str], List[Dict[str, Any
             device_id = f"virtual_{entity_id}"
         
         if device_id not in device_entities_map:
-            # Get area_id from device_cache first, fallback to entity attributes
+            # Get area_id from device_cache first, then entity registry, then entity attributes
             area_id = device_area_map.get(device_id)
+            if not area_id:
+                # Try to get from entity registry (entity registry contains area_id)
+                entity_info = entity_registry.get(entity_id)
+                if entity_info:
+                    area_id = entity_info.get("area_id")
             if not area_id:
                 # Try to get from entity attributes (though HA states API usually doesn't include this)
                 area_id = attributes.get("area_id")

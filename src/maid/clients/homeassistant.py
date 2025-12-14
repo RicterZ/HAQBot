@@ -211,6 +211,41 @@ class HomeAssistantClient:
             logger.error(f"Error getting devices: {e}")
             raise
 
+    async def get_entity_registry(self) -> Dict[str, Dict[str, Any]]:
+        """Get all entities from entity registry
+        
+        Returns:
+            Dictionary mapping entity_id to entity registry information
+        """
+        url = "/api/config/entity_registry/list"
+        
+        try:
+            logger.debug("Fetching all entities from entity registry")
+            
+            response = await self.client.get(url)
+            response.raise_for_status()
+            
+            entities = response.json()
+            logger.debug(f"Received {len(entities)} entities from registry")
+            
+            # Convert list to dict for easier lookup
+            entities_dict = {}
+            for entity in entities:
+                entity_id = entity.get("entity_id")
+                if entity_id:
+                    entities_dict[entity_id] = entity
+            
+            return entities_dict
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 404:
+                logger.debug("Entity registry API not available")
+                return {}
+            logger.error(f"HA get_entity_registry request failed: {e.response.status_code} - {e.response.text}")
+            raise
+        except Exception as e:
+            logger.error(f"Error getting entity registry: {e}")
+            raise
+
     async def get_areas(self) -> Dict[str, Dict[str, Any]]:
         """Get all areas from Home Assistant
         
