@@ -1,23 +1,25 @@
 """Entity cache for Home Assistant entities"""
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Tuple
 from threading import Lock
 
 from meteion.utils.logger import logger
 
 # Global cache
 _entity_cache: Optional[List[Dict[str, Any]]] = None
+_device_cache: Optional[List[Dict[str, Any]]] = None
+_area_cache: Optional[Dict[str, Dict[str, Any]]] = None
 _entity_registry_cache: Optional[Dict[str, Dict[str, Any]]] = None
 _cache_lock = Lock()
 _cache_initialized = False
 
 
 async def load_entity_cache() -> bool:
-    """Load entity cache from Home Assistant
+    """Load entity, device and area cache from Home Assistant
     
     Returns:
         True if cache loaded successfully, False otherwise
     """
-    global _entity_cache, _entity_registry_cache, _cache_initialized
+    global _entity_cache, _device_cache, _area_cache, _entity_registry_cache, _cache_initialized
     
     try:
         # Import here to avoid circular dependency
@@ -25,21 +27,77 @@ async def load_entity_cache() -> bool:
         
         client = HomeAssistantClient()
         try:
-            logger.info("Loading entity cache from Home Assistant...")
+            logger.info("Loading entity, device and area cache from Home Assistant...")
             states = await client.get_states()
+            
+            # Try to get devices from API, fallback to extracting from states
+            devices = []
+            try:
+                devices = await client.get_devices()
+            except Exception as dev_error:
+                logger.debug(f"Failed to get devices from API, extracting from states: {dev_error}")
+                # Extract device info from states if API not available
+                devices = _extract_devices_from_states(states)
+            
+            # Try to get areas from API
+            areas = {}
+            try:
+                areas = await client.get_areas()
+            except Exception as area_error:
+                logger.debug(f"Failed to get areas from API: {area_error}")
             
             with _cache_lock:
                 _entity_cache = states
+                _device_cache = devices
+                _area_cache = areas
                 _entity_registry_cache = {}  # Not used, kept for compatibility
                 _cache_initialized = True
             
-            logger.info(f"Entity cache loaded: {len(states)} entities")
+            logger.info(f"Entity cache loaded: {len(states)} entities, {len(devices)} devices, {len(areas)} areas")
             return True
         finally:
             await client.close()
     except Exception as e:
         logger.error(f"Failed to load entity cache: {e}", exc_info=True)
         return False
+
+
+def _extract_devices_from_states(states: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Extract device information from entity states
+    
+    Args:
+        states: List of entity state dictionaries
+    
+    Returns:
+        List of device dictionaries
+    """
+    devices_dict = {}
+    
+    for state in states:
+        entity_id = state.get("entity_id", "")
+        attributes = state.get("attributes", {})
+        
+        # Try to get device_id from attributes
+        device_id = attributes.get("device_id")
+        if not device_id:
+            # If no device_id, create a virtual device from entity
+            device_id = f"virtual_{entity_id}"
+        
+        if device_id not in devices_dict:
+            # Get area_id from attributes
+            area_id = attributes.get("area_id")
+            device_name = attributes.get("device_name") or attributes.get("friendly_name") or entity_id.split(".")[-1]
+            
+            devices_dict[device_id] = {
+                "id": device_id,
+                "name": device_name,
+                "area_id": area_id,
+                "entities": []
+            }
+        
+        devices_dict[device_id]["entities"].append(entity_id)
+    
+    return list(devices_dict.values())
 
 
 def get_entity_cache() -> Optional[List[Dict[str, Any]]]:
@@ -50,6 +108,65 @@ def get_entity_cache() -> Optional[List[Dict[str, Any]]]:
     """
     with _cache_lock:
         return _entity_cache
+
+
+def get_device_cache() -> Optional[List[Dict[str, Any]]]:
+    """Get cached device list
+    
+    Returns:
+        Cached device list or None if not initialized
+    """
+    with _cache_lock:
+        return _device_cache
+
+
+def get_area_cache() -> Optional[Dict[str, Dict[str, Any]]]:
+    """Get cached area list
+    
+    Returns:
+        Cached area dictionary or None if not initialized
+    """
+    with _cache_lock:
+        return _area_cache
+
+
+def get_entities_by_domain(domain: str) -> Dict[Optional[str], List[Dict[str, Any]]]:
+    """Get entities filtered by domain, grouped by area
+    
+    Args:
+        domain: Entity domain (e.g., 'light', 'switch')
+    
+    Returns:
+        Dictionary mapping area_id to list of entities
+    """
+    cache = get_entity_cache()
+    if not cache:
+        return {}
+    
+    entities_by_area = {}
+    
+    for state in cache:
+        entity_id = state.get("entity_id", "")
+        if not entity_id.startswith(f"{domain}."):
+            continue
+        
+        attributes = state.get("attributes", {})
+        area_id = attributes.get("area_id")
+        friendly_name = attributes.get("friendly_name", "") or entity_id
+        
+        # Use None as key for ungrouped entities
+        area_key = area_id if area_id else None
+        
+        if area_key not in entities_by_area:
+            entities_by_area[area_key] = []
+        
+        entities_by_area[area_key].append({
+            "entity_id": entity_id,
+            "friendly_name": friendly_name,
+            "state": state.get("state", "")
+        })
+    
+    return entities_by_area
 
 
 def is_cache_initialized() -> bool:
@@ -100,34 +217,32 @@ def get_all_entities() -> List[Dict[str, Any]]:
     return entities
 
 
-def find_entity_by_alias(alias: str) -> Optional[str]:
+def find_entity_by_alias(alias: str) -> Tuple[Optional[str], List[str]]:
     """Find entity ID by alias using cached entities
     
-    Supports two methods:
+    Supports three methods:
     1. entity_id: If input contains '.', treat as entity_id directly
     2. friendly_name: Match against entity's friendly_name attribute
+    3. aliases: Match against aliases in entity attributes (if available)
     
     Args:
         alias: Alias name or entity ID to search for
     
     Returns:
-        Entity ID if found, None otherwise
+        Tuple of (first matching entity_id, list of all matching entity_ids)
     """
     # Method 1: If it looks like an entity ID (contains dot), return as-is
     if '.' in alias:
         logger.debug(f"Treating '{alias}' as entity_id")
-        return alias
+        return alias, [alias]
     
     cache = get_entity_cache()
     if not cache:
         logger.warning("Entity cache not initialized, cannot find entity by alias")
-        return None
+        return None, []
     
     alias_lower = alias.lower()
-    
-    # Method 2 & 3: Search by friendly_name and aliases
-    with _cache_lock:
-        registry = _entity_registry_cache or {}
+    matches = []
     
     for state in cache:
         entity_id = state.get("entity_id", "")
@@ -137,7 +252,8 @@ def find_entity_by_alias(alias: str) -> Optional[str]:
         # Method 2: Check if alias matches friendly_name (case-insensitive)
         if friendly_name and friendly_name.lower() == alias_lower:
             logger.debug(f"Found entity {entity_id} by friendly_name: {friendly_name}")
-            return entity_id
+            matches.append(entity_id)
+            continue
         
         # Method 3: Check if alias matches any attribute that might contain aliases
         # Some integrations store aliases in attributes
@@ -147,16 +263,22 @@ def find_entity_by_alias(alias: str) -> Optional[str]:
                     for entity_alias in attr_value:
                         if isinstance(entity_alias, str) and entity_alias.lower() == alias_lower:
                             logger.debug(f"Found entity {entity_id} by alias in {attr_key}: {entity_alias}")
-                            return entity_id
+                            matches.append(entity_id)
+                            break
                 elif isinstance(attr_value, str) and attr_value.lower() == alias_lower:
                     logger.debug(f"Found entity {entity_id} by alias in {attr_key}: {attr_value}")
-                    return entity_id
+                    matches.append(entity_id)
+                    break
         
         # Also check if alias matches part of entity_id (case-insensitive)
         if entity_id.lower().endswith(f".{alias_lower}"):
             logger.debug(f"Found entity {entity_id} by entity_id pattern")
-            return entity_id
+            matches.append(entity_id)
     
-    logger.debug(f"No entity found for alias: {alias}")
-    return None
+    if not matches:
+        logger.debug(f"No entity found for alias: {alias}")
+        return None, []
+    
+    # Return first match and all matches
+    return matches[0], matches
 

@@ -175,6 +175,128 @@ class HomeAssistantClient:
             logger.error(f"Error getting states: {e}")
             raise
 
+    async def get_devices(self) -> List[Dict[str, Any]]:
+        """Get all devices from Home Assistant
+        
+        Returns:
+            List of device dictionaries
+        """
+        url = "/api/config/device_registry/list"
+        
+        try:
+            logger.debug("Fetching all devices from HA")
+            
+            response = await self.client.get(url)
+            response.raise_for_status()
+            
+            devices = response.json()
+            logger.debug(f"Received {len(devices)} devices")
+            
+            return devices
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 404:
+                logger.debug("Device registry API not available, will extract from states")
+                return []
+            logger.error(f"HA get_devices request failed: {e.response.status_code} - {e.response.text}")
+            raise
+        except Exception as e:
+            logger.error(f"Error getting devices: {e}")
+            raise
+
+    async def get_areas(self) -> Dict[str, Dict[str, Any]]:
+        """Get all areas from Home Assistant
+        
+        Returns:
+            Dictionary mapping area_id to area information
+        """
+        url = "/api/config/area_registry/list"
+        
+        try:
+            logger.debug("Fetching all areas from HA")
+            
+            response = await self.client.get(url)
+            response.raise_for_status()
+            
+            areas = response.json()
+            logger.debug(f"Received {len(areas)} areas")
+            
+            # Convert list to dict for easier lookup
+            areas_dict = {}
+            for area in areas:
+                area_id = area.get("area_id")
+                if area_id:
+                    areas_dict[area_id] = area
+            
+            return areas_dict
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 404:
+                logger.debug("Area registry API not available")
+                return {}
+            logger.error(f"HA get_areas request failed: {e.response.status_code} - {e.response.text}")
+            raise
+        except Exception as e:
+            logger.error(f"Error getting areas: {e}")
+            raise
+
+    async def get_context_info(self) -> Dict[str, Any]:
+        """Get context information directly from API without using conversation
+        
+        Returns:
+            Dictionary containing context information
+        """
+        try:
+            # Get all states
+            states = await self.get_states()
+            
+            # Categorize entities
+            context = {
+                "total_entities": len(states),
+                "sensors": [],
+                "switches": [],
+                "lights": [],
+                "climate": [],
+                "binary_sensors": [],
+                "other": []
+            }
+            
+            for state in states:
+                entity_id = state.get("entity_id", "")
+                if not entity_id:
+                    continue
+                
+                domain = entity_id.split(".")[0] if "." in entity_id else "unknown"
+                attributes = state.get("attributes", {})
+                friendly_name = attributes.get("friendly_name", "") or entity_id
+                entity_state = state.get("state", "")
+                
+                entity_info = {
+                    "entity_id": entity_id,
+                    "friendly_name": friendly_name,
+                    "state": entity_state
+                }
+                
+                if domain == "sensor":
+                    # Add unit if available
+                    unit = attributes.get("unit_of_measurement", "")
+                    if unit:
+                        entity_info["unit"] = unit
+                    context["sensors"].append(entity_info)
+                elif domain == "switch":
+                    context["switches"].append(entity_info)
+                elif domain == "light":
+                    context["lights"].append(entity_info)
+                elif domain == "climate":
+                    context["climate"].append(entity_info)
+                elif domain == "binary_sensor":
+                    context["binary_sensors"].append(entity_info)
+                else:
+                    context["other"].append(entity_info)
+            
+            return context
+        except Exception as e:
+            logger.error(f"Error getting context info: {e}")
+            raise
+
     async def find_entity_by_alias(self, alias: str) -> Optional[str]:
         """Find entity ID by alias (friendly_name or entity_id)
         
