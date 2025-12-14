@@ -228,13 +228,24 @@ class HomeAssistantClient:
             entities = response.json()
             logger.debug(f"Received {len(entities)} entities from registry")
             
+            # Log sample entity structure for debugging
+            if entities and logger.isEnabledFor(logging.DEBUG):
+                sample = entities[0]
+                logger.debug(f"Sample entity registry structure: {list(sample.keys())}")
+                if "area_id" in sample:
+                    logger.debug(f"Sample entity area_id: {sample.get('area_id')}")
+            
             # Convert list to dict for easier lookup
             entities_dict = {}
+            entities_with_area = 0
             for entity in entities:
                 entity_id = entity.get("entity_id")
                 if entity_id:
                     entities_dict[entity_id] = entity
+                    if entity.get("area_id"):
+                        entities_with_area += 1
             
+            logger.info(f"Entity registry: {entities_with_area}/{len(entities)} entities have area_id")
             return entities_dict
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 404:

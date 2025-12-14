@@ -47,9 +47,12 @@ async def load_entity_cache() -> bool:
             entity_registry = {}
             try:
                 entity_registry = await client.get_entity_registry()
-                logger.debug(f"Loaded {len(entity_registry)} entities from registry")
+                logger.info(f"Loaded {len(entity_registry)} entities from registry")
+                if entity_registry:
+                    entities_with_area = sum(1 for e in entity_registry.values() if e.get("area_id"))
+                    logger.info(f"Entity registry: {entities_with_area}/{len(entity_registry)} entities have area_id")
             except Exception as reg_error:
-                logger.debug(f"Failed to get entity registry: {reg_error}")
+                logger.warning(f"Failed to get entity registry: {reg_error}")
             
             with _cache_lock:
                 _entity_cache = states
@@ -203,6 +206,12 @@ def get_devices_by_domain(domain: str) -> Dict[Optional[str], List[Dict[str, Any
                 entity_info = entity_registry.get(entity_id)
                 if entity_info:
                     area_id = entity_info.get("area_id")
+                    if area_id:
+                        logger.debug(f"Found area_id {area_id} for entity {entity_id} from entity registry")
+                    else:
+                        logger.debug(f"Entity {entity_id} in registry but has no area_id")
+                else:
+                    logger.debug(f"Entity {entity_id} not found in entity registry")
             if not area_id:
                 # Try to get from entity attributes (though HA states API usually doesn't include this)
                 area_id = attributes.get("area_id")
