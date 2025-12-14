@@ -64,19 +64,15 @@ def _is_sender_allowed(message: dict) -> bool:
     """
     allowed_senders = _get_allowed_senders()
     
-    # If no restriction, allow all
     if allowed_senders is None:
         return True
     
-    # Get sender QQ number from message
-    # NapCat message structure may have user_id or sender_id
     user_id = message.get("user_id") or message.get("sender_id") or message.get("user_id")
     
     if not user_id:
         logger.warning("Cannot determine sender QQ number from message")
         return False
     
-    # Convert to string for comparison
     user_id_str = str(user_id)
     
     return user_id_str in allowed_senders
@@ -125,7 +121,7 @@ def _extract_domain(entity_id: str) -> str:
     """Extract domain from entity ID (e.g., 'light.xxx' -> 'light')"""
     if '.' in entity_id:
         return entity_id.split('.')[0]
-    return "switch"  # Default fallback
+    return "switch"
 
 
 def _get_service_action(service: str) -> str:
@@ -158,7 +154,6 @@ async def _control_switch_task(
                 
                 for alias_or_id in entity_ids:
                     try:
-                        # Try to find entity ID by alias using cache
                         from meteion.utils.entity_cache import find_entity_by_alias
                         entity_id, all_matches = find_entity_by_alias(alias_or_id)
                         if not entity_id:
@@ -166,13 +161,11 @@ async def _control_switch_task(
                             logger.warning(f"Entity not found for alias/ID: {alias_or_id}")
                             continue
                         
-                        # Warn if multiple matches found
                         warning_msg = ""
                         if len(all_matches) > 1:
                             warning_msg = t("multiple_entities_found", alias=alias_or_id, count=len(all_matches), first=entity_id)
                             logger.warning(f"Multiple entities found for alias '{alias_or_id}': {all_matches}, using first: {entity_id}")
                         
-                        # Extract domain from entity_id (e.g., 'light.xxx' -> 'light')
                         domain = _extract_domain(entity_id)
                         result = await client.call_service(domain, service, entity_id=entity_id)
                         results.append({
@@ -185,7 +178,6 @@ async def _control_switch_task(
                         errors.append((alias_or_id, str(e)))
                         logger.error(f"Error calling {service} for {alias_or_id}: {e}")
                 
-                # Build response after processing all entities
                 action = _get_service_action(service)
                 warnings = [r["warning"] for r in results if r.get("warning")]
                 
@@ -220,7 +212,6 @@ async def _control_switch_task(
 def turn_on_handler(ws: WebSocketApp, message: dict):
     """Handle /turnon command"""
     if not _is_sender_allowed(message):
-        # Silently ignore if user doesn't have permission
         return
     
     group_id = message["group_id"]
@@ -236,7 +227,6 @@ def turn_on_handler(ws: WebSocketApp, message: dict):
 def turn_off_handler(ws: WebSocketApp, message: dict):
     """Handle /turnoff command"""
     if not _is_sender_allowed(message):
-        # Silently ignore if user doesn't have permission
         return
     
     group_id = message["group_id"]
@@ -252,7 +242,6 @@ def turn_off_handler(ws: WebSocketApp, message: dict):
 def toggle_handler(ws: WebSocketApp, message: dict):
     """Handle /toggle command"""
     if not _is_sender_allowed(message):
-        # Silently ignore if user doesn't have permission
         return
     
     group_id = message["group_id"]
@@ -270,17 +259,14 @@ async def _info_task(ws: WebSocketApp, group_id: str, message_id: Optional[str])
     try:
         client = HomeAssistantClient()
         try:
-            # Use direct API calls
             context = await client.get_context_info()
             
             lines = []
             lines.append(t("context_info_header"))
             lines.append(f"\n{t('total_entities')}: {context['total_entities']}")
             
-            # Show summary by domain
             if context["sensors"]:
                 lines.append(f"\n{t('sensors')}: {len(context['sensors'])}")
-                # Show first few important sensors
                 important_sensors = [s for s in context["sensors"][:5]]
                 for sensor in important_sensors:
                     unit = sensor.get("unit", "")
@@ -350,10 +336,7 @@ async def _list_domain_task(
             lines.append(t("entities_list_header", domain=domain))
             
             # Sort areas: None (ungrouped) last
-            sorted_areas = sorted(
-                entities_by_area.items(),
-                key=lambda x: (x[0] is None, x[0] or "")
-            )
+            sorted_areas = sorted(entities_by_area.items(), key=lambda x: (x[0] is None, x[0] or ""))
             
             for area_id, entities in sorted_areas:
                 if area_id:
@@ -471,7 +454,6 @@ def on_open(ws):
     set_ws_connection(ws)
     logger.info("WebSocket connection established")
     
-    # Load entity cache in background
     def load_cache():
         from meteion.utils.entity_cache import load_entity_cache
         loop = asyncio.new_event_loop()

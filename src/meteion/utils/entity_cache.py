@@ -30,16 +30,13 @@ async def load_entity_cache() -> bool:
             logger.info("Loading entity, device and area cache from Home Assistant...")
             states = await client.get_states()
             
-            # Try to get devices from API, fallback to extracting from states
             devices = []
             try:
                 devices = await client.get_devices()
             except Exception as dev_error:
                 logger.debug(f"Failed to get devices from API, extracting from states: {dev_error}")
-                # Extract device info from states if API not available
                 devices = _extract_devices_from_states(states)
             
-            # Try to get areas from API
             areas = {}
             try:
                 areas = await client.get_areas()
@@ -77,14 +74,11 @@ def _extract_devices_from_states(states: List[Dict[str, Any]]) -> List[Dict[str,
         entity_id = state.get("entity_id", "")
         attributes = state.get("attributes", {})
         
-        # Try to get device_id from attributes
         device_id = attributes.get("device_id")
         if not device_id:
-            # If no device_id, create a virtual device from entity
             device_id = f"virtual_{entity_id}"
         
         if device_id not in devices_dict:
-            # Get area_id from attributes
             area_id = attributes.get("area_id")
             device_name = attributes.get("device_name") or attributes.get("friendly_name") or entity_id.split(".")[-1]
             
@@ -154,7 +148,6 @@ def get_entities_by_domain(domain: str) -> Dict[Optional[str], List[Dict[str, An
         area_id = attributes.get("area_id")
         friendly_name = attributes.get("friendly_name", "") or entity_id
         
-        # Use None as key for ungrouped entities
         area_key = area_id if area_id else None
         
         if area_key not in entities_by_area:

@@ -1,5 +1,7 @@
 # HAQBot
 
+[English](README.md) | [中文](README_CN.md)
+
 QQ Bot for controlling Home Assistant devices via natural language conversation.
 
 ## Features
@@ -34,7 +36,7 @@ QQ Voice → NapCat → Download Audio → Tencent ASR → Text → HA Conversat
 
 ### Environment Variables
 
-Create a `.env` file (refer to `.env.local`):
+Create a `.env` file (refer to `.env.default`):
 
 ```env
 # NapCat WebSocket connection URL
@@ -51,8 +53,8 @@ TENCENT_SECRET_KEY=your_tencent_secret_key
 TENCENT_ASR_ENGINE=16k_zh  # Optional, default: 16k_zh
 TENCENT_ASR_REGION=         # Optional, leave empty for default
 
-# QQ account (optional)
-ACCOUNT=2167634556
+# QQ account (required) - Bot's QQ number
+ACCOUNT=your_qq_account_number
 
 # Permission control (optional)
 # Comma or space separated QQ numbers allowed to control devices
@@ -104,7 +106,7 @@ Ensure that the `conversant.ollama_conversation` conversation agent is configure
 ### Installation
 
 1. Clone this repository
-2. Copy `.env.local` to `.env` and configure your settings
+2. Copy `.env.default` to `.env` and configure your settings
 3. Run with Docker Compose:
 
 ```bash
@@ -326,4 +328,11 @@ docker-compose up -d
 
 ## License
 
-GPL
+This project is licensed under the GNU Affero General Public License v3.0 (AGPL-3.0).
+
+See the [LICENSE](LICENSE) file for details.
+
+### Additional Terms
+
+- **Commercial Use**: Commercial use is prohibited without explicit permission from the author
+- **Attribution**: All redistributions and modifications must include original author attribution
