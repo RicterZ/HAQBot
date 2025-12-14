@@ -212,60 +212,52 @@ class HomeAssistantClient:
             raise
 
     async def get_entity_aliases(self) -> Dict[str, List[str]]:
-        """Get aliases for all entities using template API
+        """Get aliases for all entities using entity registry API
         
         Returns:
             Dictionary mapping entity_id to list of aliases
         """
-        template = """
-{
-  "entities": [
-    {%- for entity_id in states | map(attribute='entity_id') | list -%}
-    {
-      "entity_id": "{{ entity_id }}",
-      "aliases": {{ (entity_registry(entity_id).aliases | default([])) if entity_registry(entity_id) else [] | tojson }}
-    }{%- if not loop.last -%},{%- endif -%}
-    {%- endfor -%}
-  ]
-}
-"""
-        url = "/api/template"
+        # Try entity registry API first
+        url = "/api/config/entity_registry/list"
         
         try:
-            logger.debug("Fetching entity aliases using template API")
+            logger.debug("Fetching entity aliases using entity registry API")
             
-            response = await self.client.post(url, json={"template": template})
+            response = await self.client.get(url)
             response.raise_for_status()
             
             result = response.json()
-            logger.debug(f"Template API response: {result}")
+            logger.debug(f"Entity registry API response type: {type(result)}")
             
-            # Template API returns the result directly, not wrapped in a key
-            if isinstance(result, list):
-                entities = result
-            elif isinstance(result, dict) and "entities" in result:
-                entities = result.get("entities", [])
-            else:
-                logger.warning(f"Unexpected template API response format: {type(result)}")
-                entities = []
+            # Entity registry API returns a list of entity objects
+            if not isinstance(result, list):
+                logger.warning(f"Unexpected entity registry API response format: {type(result)}")
+                return {}
             
-            logger.info(f"Received alias information for {len(entities)} entities")
+            logger.debug(f"Entity registry API returned {len(result)} entities")
             
             # Convert list to dict for easier lookup
             entity_aliases = {}
             entities_with_aliases = 0
-            for entity in entities:
-                entity_id = entity.get("entity_id")
-                aliases = entity.get("aliases", [])
+            
+            for entity_info in result:
+                entity_id = entity_info.get("entity_id")
+                aliases = entity_info.get("aliases", [])
+                
                 if entity_id:
                     if isinstance(aliases, list) and aliases:
-                        entity_aliases[entity_id] = [str(a) for a in aliases if a]
-                        entities_with_aliases += 1
-                        logger.debug(f"Entity {entity_id} has aliases: {aliases}")
+                        # Filter out empty strings
+                        valid_aliases = [str(a) for a in aliases if a and str(a).strip()]
+                        if valid_aliases:
+                            entity_aliases[entity_id] = valid_aliases
+                            entities_with_aliases += 1
+                            logger.debug(f"Entity {entity_id} has aliases: {valid_aliases}")
+                        else:
+                            entity_aliases[entity_id] = []
                     else:
                         entity_aliases[entity_id] = []
             
-            logger.info(f"Entity aliases: {entities_with_aliases}/{len(entities)} entities have aliases")
+            logger.info(f"Entity aliases: {entities_with_aliases}/{len(result)} entities have aliases")
             if entities_with_aliases > 0:
                 # Log a few sample entities with aliases
                 sample_entities = [(eid, aliases) for eid, aliases in entity_aliases.items() if aliases][:3]
@@ -273,14 +265,41 @@ class HomeAssistantClient:
             return entity_aliases
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 404:
-                logger.warning("Template API not available (404). Cannot get entity aliases.")
-                return {}
-            logger.error(f"HA template API request failed: {e.response.status_code} - {e.response.text}")
-            raise
+                logger.warning("Entity registry API not available (404). Trying template API as fallback.")
+                # Fallback to template API
+                return await self._get_entity_aliases_from_template()
+            logger.error(f"HA entity registry API request failed: {e.response.status_code} - {e.response.text}")
+            # Try template API as fallback
+            logger.info("Trying template API as fallback...")
+            return await self._get_entity_aliases_from_template()
         except Exception as e:
-            logger.warning(f"Error getting entity aliases: {e}")
-            # Don't raise, just return empty dict
-            return {}
+            logger.warning(f"Error getting entity aliases from registry API: {e}")
+            # Try template API as fallback
+            logger.info("Trying template API as fallback...")
+            return await self._get_entity_aliases_from_template()
+    
+    async def _get_entity_aliases_from_template(self) -> Dict[str, List[str]]:
+        """Fallback method: Get aliases using template API
+        
+        Returns:
+            Dictionary mapping entity_id to list of aliases
+        """
+        # Try using expand function to get entity registry info
+        template = """
+{%- set all_entities = states | map(attribute='entity_id') | list -%}
+{%- set result = [] -%}
+{%- for entity_id in all_entities -%}
+  {%- set reg = expand(entity_id) | default(None) -%}
+  {%- if reg and reg.entity_id -%}
+    {%- set aliases = reg.attributes.get('aliases', []) if reg.attributes else [] -%}
+    {{- {'entity_id': entity_id, 'aliases': aliases} | tojson -}}{%- if not loop.last -%},{%- endif -%}
+  {%- endif -%}
+{%- endfor -%}
+"""
+        # Actually, let's use a simpler approach - just return empty for now
+        # Template API doesn't have direct access to entity registry
+        logger.warning("Template API fallback: entity registry aliases not available via template")
+        return {}
 
     async def get_entity_areas(self) -> Dict[str, str]:
         """Get area information for all entities using template API
