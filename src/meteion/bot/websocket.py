@@ -117,7 +117,7 @@ async def _control_switch_task(
                         from meteion.utils.entity_cache import find_entity_by_alias
                         entity_id = find_entity_by_alias(alias_or_id)
                         if not entity_id:
-                            errors.append((alias_or_id, "Entity not found"))
+                            errors.append((alias_or_id, t("entity_not_found")))
                             logger.warning(f"Entity not found for alias/ID: {alias_or_id}")
                             continue
                         

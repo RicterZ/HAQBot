@@ -21,6 +21,7 @@ _TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "success_action": "成功{action}: {entity_list}",
         "error_executing_action": "执行{action}时出错: {error}",
         "error_processing_command": "处理命令时出错: {error}",
+        "entity_not_found": "实体未找到",
         "unable_to_get_context": "无法获取环境信息",
         "error_getting_context": "获取环境信息时出错: {error}",
         
@@ -72,6 +73,7 @@ _TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "success_action": "Successfully {action}: {entity_list}",
         "error_executing_action": "Error executing {action}: {error}",
         "error_processing_command": "Error processing command: {error}",
+        "entity_not_found": "Entity not found",
         "unable_to_get_context": "Unable to get context information",
         "error_getting_context": "Error getting context information: {error}",
         

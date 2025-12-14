@@ -27,7 +27,14 @@ async def load_entity_cache() -> bool:
         try:
             logger.info("Loading entity cache from Home Assistant...")
             states = await client.get_states()
-            registry = await client.get_entity_registry()
+            
+            # Try to load registry, but don't fail if it's not available
+            registry = {}
+            try:
+                registry = await client.get_entity_registry()
+            except Exception as reg_error:
+                logger.warning(f"Failed to load entity registry (may not be available): {reg_error}")
+                registry = {}
             
             with _cache_lock:
                 _entity_cache = states
@@ -57,6 +64,40 @@ def is_cache_initialized() -> bool:
     """Check if cache is initialized"""
     with _cache_lock:
         return _cache_initialized
+
+
+def get_all_entities() -> List[Dict[str, Any]]:
+    """Get all entities with formatted information
+    
+    Returns:
+        List of formatted entity dictionaries
+    """
+    cache = get_entity_cache()
+    if not cache:
+        return []
+    
+    with _cache_lock:
+        registry = _entity_registry_cache or {}
+    
+    entities = []
+    for state in cache:
+        entity_id = state.get("entity_id", "")
+        attributes = state.get("attributes", {})
+        friendly_name = attributes.get("friendly_name", "")
+        domain = entity_id.split(".")[0] if "." in entity_id else ""
+        
+        registry_entry = registry.get(entity_id, {})
+        aliases = registry_entry.get("aliases", [])
+        
+        entities.append({
+            "entity_id": entity_id,
+            "domain": domain,
+            "friendly_name": friendly_name or entity_id,
+            "aliases": aliases,
+            "state": state.get("state", ""),
+        })
+    
+    return entities
 
 
 def find_entity_by_alias(alias: str) -> Optional[str]:
