@@ -1,5 +1,3 @@
-"""
-国际化支持模�?支持中文（默认）和英�?"""
 import os
 from typing import Dict, Any
 
@@ -8,82 +6,82 @@ from typing import Dict, Any
 _TRANSLATIONS: Dict[str, Dict[str, str]] = {
     "zh_CN": {
         # websocket.py
-        "conversation_context_cleared": "对话上下文已清除�?,
-        "no_conversation_context": "没有需要清除的对话上下文�?,
-        "please_specify_entity_id": "请指定实体ID。用�? /{service_name} <实体ID> [<实体ID2> ...]",
+        "conversation_context_cleared": "对话上下文已清除",
+        "no_conversation_context": "没有需要清除的对话上下文",
+        "please_specify_entity_id": "请指定实体ID。用�? /{service_name} <实体ID> [<实体ID2> ...]",
         "turn_on": "打开",
         "turn_off": "关闭",
         "toggle": "切换",
         "action_failed": "{action}失败:\n{errors}",
-        "success_action_count": "成功{action}�?{count} 个实体。\n错误:\n{errors}",
+        "success_action_count": "成功{action}�?{count} 个实体。\n错误:\n{errors}",
         "success_action": "成功{action}: {entity_list}",
-        "error_executing_action": "执行{action}时出�? {error}",
-        "error_processing_command": "处理命令时出�? {error}",
-        "entity_not_found": "实体未找�?,
-        "multiple_entities_found": "⚠️ 发现 {count} 个同名实体（别名: {alias}），将控制第一�? {first}",
+        "error_executing_action": "执行{action}时出错: {error}",
+        "error_processing_command": "处理命令时出�? {error}",
+        "entity_not_found": "实体未找到",
+        "multiple_entities_found": "⚠️ 发现 {count} 个同名实体（别名: {alias}），将控制第一个: {first}",
         "unable_to_get_context": "无法获取环境信息",
-        "error_getting_context": "获取环境信息时出�? {error}",
-        "no_devices_found": "未找�?{domain} 类型的设�?,
-        "devices_list_header": "{domain} 设备（按区域分组�?",
+        "error_getting_context": "获取环境信息时出错: {error}",
+        "no_devices_found": "未找到 {domain} 类型的设备",
+        "devices_list_header": "{domain} 设备（按区域分组）",
         "area": "区域",
-        "ungrouped": "未分�?,
-        "context_info_header": "🏠 家居状�?,
+        "ungrouped": "未分组",
+        "context_info_header": "🏠 家居状态",
         "lights_on": "开启的灯光",
         "climate_devices": "空调设备",
         "temperature": "温度",
         "humidity": "湿度",
-        "important_status": "重要状�?,
+        "important_status": "重要状态",
         "current_temp": "当前",
         "target_temp": "目标",
         "mode": "模式",
-        "fan": "风�?,
-        "no_status_info": "暂无状态信�?,
-        "help_header": "📋 支持的命令列�?",
-        "help_command_description": "显示所有支持的命令和简要描�?,
-        "echo_command_description": "回显输入的文本（用于测试�?,
-        "clear_command_description": "清除对话上下�?,
-        "turnon_command_description": "打开指定的设备（支持实体ID、友好名称或别名，可同时控制多个�?,
-        "turnoff_command_description": "关闭指定的设备（支持实体ID、友好名称或别名，可同时控制多个�?,
-        "toggle_command_description": "切换指定设备的状态（支持实体ID、友好名称或别名，可同时控制多个�?,
+        "fan": "风扇",
+        "no_status_info": "暂无状态信息",
+        "help_header": "📋 支持的命令列表",
+        "help_command_description": "显示所有支持的命令和简要描述",
+        "echo_command_description": "回显输入的文本（用于测试）",
+        "clear_command_description": "清除对话上下文",
+        "turnon_command_description": "打开指定的设备（支持实体ID、友好名称或别名，可同时控制多个）",
+        "turnoff_command_description": "关闭指定的设备（支持实体ID、友好名称或别名，可同时控制多个）",
+        "toggle_command_description": "切换指定设备的状态（支持实体ID、友好名称或别名，可同时控制多个）",
         "info_command_description": "获取 Home Assistant 环境信息（实体统计）",
         "light_command_description": "列出所有灯光设备（按区域分组）",
         "switch_command_description": "列出所有开关设备（按区域分组）",
-        "permission_denied": "�?您没有权限执行此操作",
+        "permission_denied": "您没有权限执行此操作",
         
         # conversation.py
-        "request_processed": "请求已处�?,
-        "error_processing_request": "处理请求时出�? {error}",
+        "request_processed": "请求已处理",
+        "error_processing_request": "处理请求时出错: {error}",
         
         # webhook/app.py
-        "invalid_webhook_token": "无效�?webhook token",
-        "group_id_and_message_required": "group_id �?message 是必需�?,
-        "notification_sent": "通知已发�?,
+        "invalid_webhook_token": "无效 webhook token",
+        "group_id_and_message_required": "group_id 和 message 是必需的",
+        "notification_sent": "通知已发送",
         "failed_to_send_notification": "发送通知失败",
-        "group_id_required": "group_id 是必需�?,
-        "message_or_url_required": "至少需要提�?message �?url 之一",
-        "failed_to_download_video_stream": "下载视频流失�?,
-        "failed_to_process_video_stream": "处理视频流失�? {error}",
-        "multimodal_notification_sent": "多模态通知已发�?,
+        "group_id_required": "group_id 是必需的",
+        "message_or_url_required": "至少需要提�?message �?url 之一",
+        "failed_to_download_video_stream": "下载视频流失败",
+        "failed_to_process_video_stream": "处理视频流失败: {error}",
+        "multimodal_notification_sent": "多模态通知已发送",
         "failed_to_send_multimodal_notification": "发送多模态通知失败",
         
         # sender.py
-        "websocket_not_available": "WebSocket 连接不可�?,
-        "message_or_file_required": "至少需要提�?message �?file_path 之一",
+        "websocket_not_available": "WebSocket 连接不可用",
+        "message_or_file_required": "至少需要提供 message 或 file_path 之一",
         
         # main.py
-        "home_assistant_qq_bot_starting": "Home Assistant QQ Bot - 启动�?..",
+        "home_assistant_qq_bot_starting": "Home Assistant QQ Bot - 启动中...",
         "napcat_websocket_url": "NapCat WebSocket URL",
         "home_assistant_url": "Home Assistant URL",
         "home_assistant_token": "Home Assistant Token",
-        "configured": "已配�?,
-        "not_configured": "未配�?(需要设�?HA_TOKEN)",
+        "configured": "已配置",
+        "not_configured": "未配置(需要设置 HA_TOKEN)",
         "home_assistant_agent_id": "Home Assistant Agent ID",
         "qq_account": "QQ 账号",
-        "webhook_server_port": "Webhook 服务器端�?,
-        "ha_token_not_set": "HA_TOKEN 未设置。请�?.env 文件中配置它�?,
-        "exiting": "退�?..",
-        "webhook_server_started": "Webhook 服务器已启动，端�? {port}",
-        "connecting_to_napcat": "正在连接�?NapCat WebSocket",
+        "webhook_server_port": "Webhook 服务器端口",
+        "ha_token_not_set": "HA_TOKEN 未设置。请在 .env 文件中配置它",
+        "exiting": "退出中...",
+        "webhook_server_started": "Webhook 服务器已启动，端口: {port}",
+        "connecting_to_napcat": "正在连接到 NapCat WebSocket",
     },
     "en_US": {
         # websocket.py
@@ -127,7 +125,7 @@ _TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "info_command_description": "Get Home Assistant context information (entity statistics)",
         "light_command_description": "List all light devices (grouped by area)",
         "switch_command_description": "List all switch devices (grouped by area)",
-        "permission_denied": "�?You do not have permission to perform this operation",
+        "permission_denied": "�?You do not have permission to perform this operation",
         
         # conversation.py
         "request_processed": "Request processed",
@@ -180,7 +178,7 @@ def t(key: str, **kwargs) -> str:
     获取翻译文本
     
     Args:
-        key: 翻译�?        **kwargs: 用于格式化字符串的参�?        
+        key: 翻译�?        **kwargs: 用于格式化字符串的参�?        
     Returns:
         翻译后的文本
     """
