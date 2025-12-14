@@ -125,7 +125,7 @@ _TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "info_command_description": "Get Home Assistant context information (entity statistics)",
         "light_command_description": "List all light devices (grouped by area)",
         "switch_command_description": "List all switch devices (grouped by area)",
-        "permission_denied": "�?You do not have permission to perform this operation",
+        "permission_denied": "You do not have permission to perform this operation",
         
         # conversation.py
         "request_processed": "Request processed",
