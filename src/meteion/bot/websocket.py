@@ -7,6 +7,7 @@ from websocket import WebSocketApp
 
 from meteion.utils import CommandEncoder
 from meteion.utils.logger import logger
+from meteion.utils.i18n import t
 from meteion.models.message import Command, CommandType, TextMessage, ReplyMessage
 from meteion.handlers.conversation import conversation_handler, clear_conversation_context
 from meteion.bot.connection import set_ws_connection
@@ -32,7 +33,7 @@ def clear_handler(ws: WebSocketApp, message: dict):
     message_id = message.get("message_id")
     
     cleared = clear_conversation_context(group_id)
-    response_text = "Conversation context cleared." if cleared else "No conversation context to clear."
+    response_text = t("conversation_context_cleared") if cleared else t("no_conversation_context")
     _send_response(ws, group_id, message_id, response_text)
 
 
@@ -75,11 +76,14 @@ def _parse_entity_ids(raw_message: str, command_prefix: str) -> List[str]:
     return [eid.strip() for eid in args.split() if eid.strip()]
 
 
-_SERVICE_ACTIONS = {
-    "turn_on": "打开",
-    "turn_off": "关闭",
-    "toggle": "切换"
-}
+def _get_service_action(service: str) -> str:
+    """Get localized service action name"""
+    action_map = {
+        "turn_on": t("turn_on"),
+        "turn_off": t("turn_off"),
+        "toggle": t("toggle")
+    }
+    return action_map.get(service, service.replace('_', ' '))
 
 
 async def _control_switch_task(
@@ -95,7 +99,7 @@ async def _control_switch_task(
         try:
             if not entity_ids:
                 service_name = service.replace('_', '')
-                response_text = f"请指定实体ID。用法: /{service_name} <实体ID> [<实体ID2> ...]"
+                response_text = t("please_specify_entity_id", service_name=service_name)
             else:
                 results = []
                 errors = []
@@ -108,30 +112,30 @@ async def _control_switch_task(
                         errors.append((entity_id, str(e)))
                         logger.error(f"Error calling {service} for {entity_id}: {e}")
                 
-                action = _SERVICE_ACTIONS.get(service, service.replace('_', ' '))
-                
-                if errors and not results:
-                    error_msgs = [f"{eid}: {err}" for eid, err in errors]
-                    response_text = f"{action}失败:\n" + "\n".join(error_msgs)
-                elif errors:
-                    success_count = len(results)
-                    error_msgs = [f"{eid}: {err}" for eid, err in errors]
-                    response_text = f"成功{action}了 {success_count} 个实体。\n错误:\n" + "\n".join(error_msgs)
-                else:
-                    entity_list = ", ".join(entity_ids)
-                    response_text = f"成功{action}: {entity_list}"
+                    action = _get_service_action(service)
                     
+                    if errors and not results:
+                        error_msgs = [f"{eid}: {err}" for eid, err in errors]
+                        response_text = t("action_failed", action=action, errors="\n".join(error_msgs))
+                    elif errors:
+                        success_count = len(results)
+                        error_msgs = [f"{eid}: {err}" for eid, err in errors]
+                        response_text = t("success_action_count", action=action, count=success_count, errors="\n".join(error_msgs))
+                    else:
+                        entity_list = ", ".join(entity_ids)
+                        response_text = t("success_action", action=action, entity_list=entity_list)
+                        
         except Exception as e:
             logger.error(f"Error in {service} task: {e}", exc_info=True)
-            action = _SERVICE_ACTIONS.get(service, service.replace('_', ' '))
-            response_text = f"执行{action}时出错: {str(e)}"
+            action = _get_service_action(service)
+            response_text = t("error_executing_action", action=action, error=str(e))
         finally:
             await client.close()
         
         _send_response(ws, group_id, message_id, response_text)
     except Exception as e:
         logger.error(f"Error in control_switch_task: {e}", exc_info=True)
-        _send_response(ws, group_id, message_id, f"处理命令时出错: {str(e)}")
+        _send_response(ws, group_id, message_id, t("error_processing_command", error=str(e)))
 
 
 def turn_on_handler(ws: WebSocketApp, message: dict):
@@ -199,18 +203,18 @@ async def _info_task(ws: WebSocketApp, group_id: str, message_id: Optional[str])
                     response_text = result.get("speech", "")
             
             if not response_text:
-                response_text = str(result) if result else "无法获取环境信息"
+                response_text = str(result) if result else t("unable_to_get_context")
                 
         except Exception as e:
             logger.error(f"Error getting live context: {e}", exc_info=True)
-            response_text = f"获取环境信息时出错: {str(e)}"
+            response_text = t("error_getting_context", error=str(e))
         finally:
             await client.close()
         
         _send_response(ws, group_id, message_id, response_text)
     except Exception as e:
         logger.error(f"Error in info_task: {e}", exc_info=True)
-        _send_response(ws, group_id, message_id, f"处理命令时出错: {str(e)}")
+        _send_response(ws, group_id, message_id, t("error_processing_command", error=str(e)))
 
 
 def info_handler(ws: WebSocketApp, message: dict):

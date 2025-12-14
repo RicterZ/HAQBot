@@ -5,6 +5,7 @@ from typing import Optional, List
 from meteion.models.message import Command, CommandType, TextMessage, VideoMessage, FileMessage, ForwardNode
 from meteion.utils import CommandEncoder
 from meteion.utils.logger import logger
+from meteion.utils.i18n import t
 from meteion.bot.connection import get_ws_connection
 
 
@@ -21,7 +22,7 @@ def send_group_message(group_id: str, message: str) -> bool:
     """
     ws = get_ws_connection()
     if not ws:
-        logger.error("WebSocket connection not available")
+        logger.error(t("websocket_not_available"))
         return False
     
     try:
@@ -60,11 +61,11 @@ def send_group_multimodal_message(
     """
     ws = get_ws_connection()
     if not ws:
-        logger.error("WebSocket connection not available")
+        logger.error(t("websocket_not_available"))
         return False
     
     if not message and not file_path:
-        logger.error("At least one of message or file_path must be provided")
+        logger.error(t("message_or_file_required"))
         return False
     
     try:

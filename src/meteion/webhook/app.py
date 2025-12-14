@@ -5,6 +5,7 @@ from pydantic import BaseModel
 
 from meteion.services.sender import send_group_message, send_group_multimodal_message
 from meteion.utils.logger import logger
+from meteion.utils.i18n import t
 from meteion.utils.video import download_video_stream_async
 
 
@@ -40,17 +41,17 @@ async def notify(request: WebhookRequest):
     webhook_token = os.getenv("WEBHOOK_TOKEN", "")
     
     if webhook_token and request.token != webhook_token:
-        raise HTTPException(status_code=401, detail="Invalid webhook token")
+        raise HTTPException(status_code=401, detail=t("invalid_webhook_token"))
     
     if not request.group_id or not request.message:
-        raise HTTPException(status_code=400, detail="group_id and message are required")
+        raise HTTPException(status_code=400, detail=t("group_id_and_message_required"))
     
     success = send_group_message(request.group_id, request.message)
     
     if success:
-        return {"status": "ok", "message": "Notification sent"}
+        return {"status": "ok", "message": t("notification_sent")}
     else:
-        raise HTTPException(status_code=500, detail="Failed to send notification")
+        raise HTTPException(status_code=500, detail=t("failed_to_send_notification"))
 
 
 @app.post("/webhook/multimodal")
@@ -70,13 +71,13 @@ async def multimodal_notify(request: MultimodalWebhookRequest):
     webhook_token = os.getenv("WEBHOOK_TOKEN", "")
     
     if webhook_token and request.token != webhook_token:
-        raise HTTPException(status_code=401, detail="Invalid webhook token")
+        raise HTTPException(status_code=401, detail=t("invalid_webhook_token"))
     
     if not request.group_id:
-        raise HTTPException(status_code=400, detail="group_id is required")
+        raise HTTPException(status_code=400, detail=t("group_id_required"))
     
     if not request.message and not request.url:
-        raise HTTPException(status_code=400, detail="At least one of message or url is required")
+        raise HTTPException(status_code=400, detail=t("message_or_url_required"))
     
     file_path = None
     
@@ -91,7 +92,7 @@ async def multimodal_notify(request: MultimodalWebhookRequest):
             if not file_path:
                 raise HTTPException(
                     status_code=500,
-                    detail="Failed to download video stream"
+                    detail=t("failed_to_download_video_stream")
                 )
             
             logger.info(f"Video stream downloaded to: {file_path}")
@@ -104,7 +105,7 @@ async def multimodal_notify(request: MultimodalWebhookRequest):
                     pass
             raise HTTPException(
                 status_code=500,
-                detail=f"Failed to process video stream: {str(e)}"
+                detail=t("failed_to_process_video_stream", error=str(e))
             )
     
     success = send_group_multimodal_message(
@@ -116,7 +117,7 @@ async def multimodal_notify(request: MultimodalWebhookRequest):
     if success:
         return {
             "status": "ok",
-            "message": "Multimodal notification sent",
+            "message": t("multimodal_notification_sent"),
             "file_path": file_path
         }
     else:
@@ -125,7 +126,7 @@ async def multimodal_notify(request: MultimodalWebhookRequest):
                 os.remove(file_path)
             except:
                 pass
-        raise HTTPException(status_code=500, detail="Failed to send multimodal notification")
+        raise HTTPException(status_code=500, detail=t("failed_to_send_multimodal_notification"))
 
 
 @app.get("/health")

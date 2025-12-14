@@ -11,6 +11,7 @@ from meteion.clients.napcat import get_voice_file
 from meteion.clients.tencent_asr import sentence_recognize
 from meteion.utils import CommandEncoder
 from meteion.utils.logger import logger
+from meteion.utils.i18n import t
 from meteion.models.message import Command, CommandType, TextMessage, ReplyMessage
 
 
@@ -152,7 +153,7 @@ async def _process_conversation_task(ws: WebSocketApp, group_id: str, message_id
         
         if not response_text or response_text.strip() == "":
             logger.warning("Response text is empty, using default message")
-            response_text = "Request processed"
+            response_text = t("request_processed")
         
         if response_type == "error":
             if error_code == "no_intent_match":
@@ -166,7 +167,7 @@ async def _process_conversation_task(ws: WebSocketApp, group_id: str, message_id
         
     except Exception as e:
         logger.error(f"Error processing conversation: {e}", exc_info=True)
-        error_msg = f"Error processing request: {str(e)}"
+        error_msg = t("error_processing_request", error=str(e))
         _send_response(ws, group_id, message_id, error_msg)
 
 
