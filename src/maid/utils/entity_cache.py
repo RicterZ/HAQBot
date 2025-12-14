@@ -66,6 +66,19 @@ async def load_entity_cache() -> bool:
             except Exception as alias_error:
                 logger.warning(f"Failed to get entity aliases: {alias_error}")
             
+            # Test WebSocket API for getting aliases
+            logger.info("=" * 60)
+            logger.info("Testing WebSocket API for entity aliases...")
+            try:
+                ws_aliases = await client.get_entity_aliases_via_websocket()
+                logger.info(f"WebSocket test completed: {len(ws_aliases)} entities processed")
+                if ws_aliases:
+                    ws_entities_with_aliases = sum(1 for aliases in ws_aliases.values() if aliases)
+                    logger.info(f"WebSocket test: {ws_entities_with_aliases}/{len(ws_aliases)} entities have aliases")
+            except Exception as ws_error:
+                logger.warning(f"WebSocket test failed: {ws_error}", exc_info=True)
+            logger.info("=" * 60)
+            
             with _cache_lock:
                 _entity_cache = states
                 _device_cache = devices
@@ -333,22 +346,14 @@ def get_all_entities() -> List[Dict[str, Any]]:
         friendly_name = attributes.get("friendly_name", "")
         domain = entity_id.split(".")[0] if "." in entity_id else ""
         
-        # Try to extract aliases from attributes
-        aliases = []
-        for attr_key in ["aliases", "alias", "device_aliases"]:
-            attr_value = attributes.get(attr_key)
-            if attr_value:
-                if isinstance(attr_value, list):
-                    aliases.extend([str(a) for a in attr_value if a])
-                elif isinstance(attr_value, str):
-                    aliases.append(attr_value)
-                break
+        # Note: aliases cannot be extracted from entity attributes via template API
+        # They need to be fetched via entity registry API
         
         entities.append({
             "entity_id": entity_id,
             "domain": domain,
             "friendly_name": friendly_name or entity_id,
-            "aliases": aliases,
+            "aliases": [],  # Aliases cannot be obtained from template API
             "state": state.get("state", ""),
         })
     
@@ -358,10 +363,12 @@ def get_all_entities() -> List[Dict[str, Any]]:
 def find_entity_by_alias(alias: str) -> Tuple[Optional[str], List[str]]:
     """Find entity ID by alias using cached entities
     
-    Supports three methods:
+    Supports two methods:
     1. entity_id: If input contains '.', treat as entity_id directly
     2. friendly_name: Match against entity's friendly_name attribute
-    3. aliases: Match against aliases in entity attributes (if available)
+    
+    Note: Entity registry aliases cannot be obtained via template API and are not supported here.
+    They need to be fetched via entity registry API.
     
     Args:
         alias: Alias name or entity ID to search for
@@ -393,47 +400,6 @@ def find_entity_by_alias(alias: str) -> Tuple[Optional[str], List[str]]:
             matches.append(entity_id)
             continue
         
-        # Method 3: Check entity registry aliases (from template API)
-        entity_aliases_cache = get_entity_aliases_cache() or {}
-        if entity_id in entity_aliases_cache:
-            aliases = entity_aliases_cache[entity_id]
-            if aliases:
-                logger.debug(f"Entity {entity_id} has {len(aliases)} aliases: {aliases}")
-            for entity_alias in aliases:
-                if isinstance(entity_alias, str) and entity_alias.lower() == alias_lower:
-                    logger.debug(f"Found entity {entity_id} by entity registry alias: {entity_alias}")
-                    if entity_id not in matches:
-                        matches.append(entity_id)
-                    break
-        
-        # Method 4: Check if alias matches any attribute that might contain aliases
-        # Some integrations store aliases in attributes
-        # Also check all attributes for potential alias fields
-        for attr_key, attr_value in attributes.items():
-            # Check common alias attribute keys
-            if attr_key in ["aliases", "alias", "device_aliases", "entity_id", "name"]:
-                if isinstance(attr_value, list):
-                    for entity_alias in attr_value:
-                        if isinstance(entity_alias, str) and entity_alias.lower() == alias_lower:
-                            logger.debug(f"Found entity {entity_id} by alias in {attr_key}: {entity_alias}")
-                            if entity_id not in matches:
-                                matches.append(entity_id)
-                            break
-                elif isinstance(attr_value, str) and attr_value.lower() == alias_lower:
-                    logger.debug(f"Found entity {entity_id} by alias in {attr_key}: {attr_value}")
-                    if entity_id not in matches:
-                        matches.append(entity_id)
-                    break
-            
-            # Also check if the attribute value contains the alias (for partial matching)
-            # This helps with cases where aliases might be stored in unexpected places
-            if isinstance(attr_value, str) and alias_lower in attr_value.lower():
-                # Only add if it's an exact match (case-insensitive)
-                if attr_value.lower() == alias_lower:
-                    logger.debug(f"Found entity {entity_id} by exact match in {attr_key}: {attr_value}")
-                    if entity_id not in matches:
-                        matches.append(entity_id)
-        
         # Also check if alias matches part of entity_id (case-insensitive)
         if entity_id.lower().endswith(f".{alias_lower}"):
             logger.debug(f"Found entity {entity_id} by entity_id pattern")
@@ -442,30 +408,6 @@ def find_entity_by_alias(alias: str) -> Tuple[Optional[str], List[str]]:
     if not matches:
         logger.debug(f"No entity found for alias: {alias}")
         logger.debug(f"Searched through {len(cache)} entities")
-        
-        # Check if aliases cache is loaded
-        entity_aliases_cache = get_entity_aliases_cache() or {}
-        logger.debug(f"Aliases cache has {len(entity_aliases_cache)} entities")
-        
-        # Log climate entities with aliases for debugging
-        climate_entities = [s for s in cache if s.get("entity_id", "").startswith("climate.")]
-        if climate_entities:
-            sample = climate_entities[0]
-            sample_id = sample.get('entity_id')
-            logger.debug(f"Sample climate entity: {sample_id}, attributes keys: {list(sample.get('attributes', {}).keys())}")
-            if sample_id in entity_aliases_cache:
-                sample_aliases = entity_aliases_cache[sample_id]
-                logger.debug(f"Sample climate entity {sample_id} aliases: {sample_aliases}")
-        
-        # Check if any climate entity has the alias
-        for climate_entity in climate_entities:
-            climate_id = climate_entity.get("entity_id", "")
-            if climate_id in entity_aliases_cache:
-                aliases = entity_aliases_cache[climate_id]
-                for entity_alias in aliases:
-                    if isinstance(entity_alias, str) and alias_lower in entity_alias.lower():
-                        logger.debug(f"Found potential match: {climate_id} has alias '{entity_alias}' (searching for '{alias}')")
-        
         return None, []
     
     # Return first match and all matches
