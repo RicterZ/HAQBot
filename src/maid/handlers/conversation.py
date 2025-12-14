@@ -13,6 +13,7 @@ from maid.utils import CommandEncoder
 from maid.utils.logger import logger
 from maid.utils.i18n import t
 from maid.models.message import Command, CommandType, TextMessage, ReplyMessage
+from maid.bot.websocket import _is_sender_allowed
 
 
 _conversation_ids: Dict[str, Optional[str]] = {}
@@ -181,6 +182,9 @@ def _run_async_task(coro):
 
 
 def conversation_handler(ws: WebSocketApp, message: dict):
+    if not _is_sender_allowed(message):
+        return
+    
     group_id = message["group_id"]
     message_id = message.get("message_id")
     

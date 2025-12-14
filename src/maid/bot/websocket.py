@@ -67,15 +67,21 @@ def _is_sender_allowed(message: dict) -> bool:
     if allowed_senders is None:
         return True
     
-    user_id = message.get("user_id") or message.get("sender_id") or message.get("user_id")
+    # Try multiple possible field names for user ID
+    user_id = message.get("user_id") or message.get("sender_id")
     
     if not user_id:
-        logger.warning("Cannot determine sender QQ number from message")
+        # Log the message structure for debugging
+        logger.warning(f"Cannot determine sender QQ number from message. Available keys: {list(message.keys())}")
         return False
     
     user_id_str = str(user_id)
+    is_allowed = user_id_str in allowed_senders
     
-    return user_id_str in allowed_senders
+    if not is_allowed:
+        logger.info(f"User {user_id_str} is not in allowed senders list: {allowed_senders}")
+    
+    return is_allowed
 
 
 def _send_response(ws: WebSocketApp, group_id: str, message_id: Optional[str], response_text: str):
@@ -565,5 +571,7 @@ def on_message(ws, message):
     elif raw_message == "/help":
         help_handler(ws, message)
     elif raw_message:
+        if not _is_sender_allowed(message):
+            return
         conversation_handler(ws, message)
 
