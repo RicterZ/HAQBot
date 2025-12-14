@@ -149,6 +149,11 @@ The bot supports direct commands for faster device control without LLM processin
 - `/switch` - List all switch devices
   - Same as `/light` but for switches
 
+- `/search <query>` - Fuzzy search entities
+  - Search entities by entity ID, friendly name, or alias (case-insensitive partial match)
+  - Returns matching entities with their entity ID and friendly name
+  - Example: `/search 灯` or `/search light`
+
 - `/help` - Show all supported commands and descriptions
 
 #### Command Features

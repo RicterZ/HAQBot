@@ -39,7 +39,7 @@ _TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "mode": "模式",
         "fan": "风扇",
         "no_status_info": "暂无状态信息",
-        "help_header": "📋 支持的命令列表",
+        "help_header": f"{os.getenv("DISPLAY_NICKNAME")} 支持的命令列表",
         "help_command_description": "显示所有支持的命令和简要描述",
         "echo_command_description": "回显输入的文本（用于测试）",
         "clear_command_description": "清除对话上下文",
@@ -49,6 +49,11 @@ _TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "info_command_description": "获取 Home Assistant 环境信息（实体统计）",
         "light_command_description": "列出所有灯光设备（按区域分组）",
         "switch_command_description": "列出所有开关设备（按区域分组）",
+        "search_command_description": "模糊搜索实体（支持实体ID、友好名称或别名）",
+        "search_usage": "用法: /search <查询关键词>",
+        "search_results_header": "🔍 搜索结果（关键词: {query}，找到 {count} 个）:",
+        "search_no_results": "未找到匹配 '{query}' 的实体",
+        "search_results_truncated": "（结果已截断，仅显示前20个）",
         "permission_denied": "您没有权限执行此操作",
         
         # conversation.py
@@ -131,6 +136,11 @@ _TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "info_command_description": "Get Home Assistant context information (entity statistics)",
         "light_command_description": "List all light devices (grouped by area)",
         "switch_command_description": "List all switch devices (grouped by area)",
+        "search_command_description": "Fuzzy search entities (supports entity_id, friendly_name, or alias)",
+        "search_usage": "Usage: /search <query>",
+        "search_results_header": "🔍 Search Results (query: {query}, found {count}):",
+        "search_no_results": "No entities found matching '{query}'",
+        "search_results_truncated": "(Results truncated, showing first 20)",
         "permission_denied": "You do not have permission to perform this operation",
         
         # conversation.py

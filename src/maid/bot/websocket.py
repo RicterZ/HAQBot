@@ -79,8 +79,6 @@ def _is_sender_allowed(message: dict) -> bool:
     return user_id_str in allowed_senders
 
 
-
-
 def _parse_entity_ids(raw_message: str, command_prefix: str) -> List[str]:
     """Parse entity IDs from command message, supporting quoted names with spaces
     
@@ -468,6 +466,11 @@ def _get_commands_list() -> List[Dict[str, str]]:
             "emoji": "🔌"
         },
         {
+            "command": "/search <query>",
+            "description": t("search_command_description"),
+            "emoji": "🔍"
+        },
+        {
             "command": "/clear",
             "description": t("clear_command_description"),
             "emoji": "🗑️"
@@ -478,6 +481,107 @@ def _get_commands_list() -> List[Dict[str, str]]:
             "emoji": "📢"
         },
     ]
+
+
+def _search_entities(query: str, limit: int = 20) -> List[Dict[str, str]]:
+    """Search entities by fuzzy matching on entity_id, friendly_name, and aliases
+    
+    Args:
+        query: Search query string
+        limit: Maximum number of results to return
+    
+    Returns:
+        List of matching entities with entity_id and friendly_name
+    """
+    from maid.utils.entity_cache import get_entity_cache
+    
+    cache = get_entity_cache()
+    if not cache:
+        return []
+    
+    query_lower = query.lower()
+    matches = []
+    
+    for state in cache:
+        entity_id = state.get("entity_id", "")
+        attributes = state.get("attributes", {})
+        friendly_name = attributes.get("friendly_name", "") or entity_id
+        
+        # Check if query matches entity_id (case-insensitive, partial match)
+        if query_lower in entity_id.lower():
+            matches.append({
+                "entity_id": entity_id,
+                "friendly_name": friendly_name
+            })
+            continue
+        
+        # Check if query matches friendly_name (case-insensitive, partial match)
+        if friendly_name and query_lower in friendly_name.lower():
+            matches.append({
+                "entity_id": entity_id,
+                "friendly_name": friendly_name
+            })
+            continue
+        
+        # Check if query matches any alias
+        for attr_key, attr_value in attributes.items():
+            if attr_key in ["aliases", "alias", "device_aliases"]:
+                if isinstance(attr_value, list):
+                    for alias in attr_value:
+                        if isinstance(alias, str) and query_lower in alias.lower():
+                            matches.append({
+                                "entity_id": entity_id,
+                                "friendly_name": friendly_name
+                            })
+                            break
+                elif isinstance(attr_value, str) and query_lower in attr_value.lower():
+                    matches.append({
+                        "entity_id": entity_id,
+                        "friendly_name": friendly_name
+                    })
+                    break
+        
+        if len(matches) >= limit:
+            break
+    
+    return matches[:limit]
+
+
+def search_handler(ws: WebSocketApp, message: dict):
+    """Handle /search command"""
+    group_id = message["group_id"]
+    message_id = message.get("message_id")
+    raw_message = message.get("raw_message", "").strip()
+    
+    # Extract search query
+    if not raw_message.startswith("/search "):
+        response_text = t("search_usage")
+        send_response(ws, group_id, message_id, response_text)
+        return
+    
+    query = raw_message[8:].strip()  # Remove "/search "
+    if not query:
+        response_text = t("search_usage")
+        send_response(ws, group_id, message_id, response_text)
+        return
+    
+    # Search entities
+    matches = _search_entities(query, limit=20)
+    
+    if not matches:
+        response_text = t("search_no_results", query=query)
+    else:
+        lines = []
+        lines.append(t("search_results_header", query=query, count=len(matches)))
+        for match in matches:
+            lines.append(f"  • {match['friendly_name']} ({match['entity_id']})")
+        
+        if len(matches) == 20:
+            lines.append(f"\n{t('search_results_truncated')}")
+        
+        response_text = "\n".join(lines)
+    
+    send_response(ws, group_id, message_id, response_text)
 
 
 def help_handler(ws: WebSocketApp, message: dict):
@@ -545,6 +649,8 @@ def on_message(ws, message):
         light_handler(ws, message)
     elif raw_message == "/switch":
         switch_handler(ws, message)
+    elif raw_message.startswith("/search "):
+        search_handler(ws, message)
     elif raw_message == "/help":
         help_handler(ws, message)
     elif raw_message:

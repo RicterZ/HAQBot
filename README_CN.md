@@ -149,6 +149,11 @@ TENCENT_ASR_REGION=
 - `/switch` - 列出所有开关设备
   - 与 `/light` 相同，但用于开关设备
 
+- `/search <关键词>` - 模糊搜索实体
+  - 通过实体 ID、友好名称或别名搜索实体（不区分大小写，支持部分匹配）
+  - 返回匹配的实体及其实体 ID 和友好名称
+  - 示例：`/search 灯` 或 `/search light`
+
 - `/help` - 显示所有支持的命令和描述
 
 #### 命令特性
@@ -162,7 +167,7 @@ TENCENT_ASR_REGION=
 
 - **引号名称**：使用引号包裹带空格的实体名称：`/turnon "Living Room Light"`
 
-- **权限控制**：如果设置了 `ALLOWED_SENDERS`，只有指定的 QQ 用户可以使用控制命令（`/turnon`、`/turnoff`、`/toggle`）。信息命令（`/info`、`/light`、`/switch`、`/help`）对所有用户开放。
+- **权限控制**：如果设置了 `ALLOWED_SENDERS`，只有指定的 QQ 用户可以使用控制命令（`/turnon`、`/turnoff`、`/toggle`）。信息命令（`/info`、`/light`、`/switch`、`/search`、`/help`）对所有用户开放。
 
 - **重复别名警告**：如果多个实体共享相同的别名，机器人会警告你，但仍会控制第一个匹配项
 
