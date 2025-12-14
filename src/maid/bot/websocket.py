@@ -224,9 +224,6 @@ async def _control_switch_task(
 
 def turn_on_handler(ws: WebSocketApp, message: dict):
     """Handle /turnon command"""
-    if not _is_sender_allowed(message):
-        return
-    
     group_id = message["group_id"]
     message_id = message.get("message_id")
     raw_message = message.get("raw_message", "").strip()
@@ -239,9 +236,6 @@ def turn_on_handler(ws: WebSocketApp, message: dict):
 
 def turn_off_handler(ws: WebSocketApp, message: dict):
     """Handle /turnoff command"""
-    if not _is_sender_allowed(message):
-        return
-    
     group_id = message["group_id"]
     message_id = message.get("message_id")
     raw_message = message.get("raw_message", "").strip()
@@ -254,9 +248,6 @@ def turn_off_handler(ws: WebSocketApp, message: dict):
 
 def toggle_handler(ws: WebSocketApp, message: dict):
     """Handle /toggle command"""
-    if not _is_sender_allowed(message):
-        return
-    
     group_id = message["group_id"]
     message_id = message.get("message_id")
     raw_message = message.get("raw_message", "").strip()
@@ -512,9 +503,6 @@ async def _script_task(
 
 def script_handler(ws: WebSocketApp, message: dict):
     """Handle /script command"""
-    if not _is_sender_allowed(message):
-        return
-    
     group_id = message["group_id"]
     message_id = message.get("message_id")
     raw_message = message.get("raw_message", "").strip()
@@ -760,6 +748,8 @@ def on_message(ws, message):
         return
 
     raw_message = message.get("raw_message", "").strip()
+    if not _is_sender_allowed(message):
+        return
     
     if raw_message.startswith("/echo "):
         echo_handler(ws, message)
@@ -784,7 +774,5 @@ def on_message(ws, message):
     elif raw_message == "/help":
         help_handler(ws, message)
     elif raw_message:
-        if not _is_sender_allowed(message):
-            return
         conversation_handler(ws, message)
 

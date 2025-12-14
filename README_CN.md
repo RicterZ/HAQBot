@@ -171,7 +171,7 @@ TENCENT_ASR_REGION=
 
 - **引号名称**：使用引号包裹带空格的实体名称：`/turnon "Living Room Light"`
 
-- **权限控制**：如果设置了 `ALLOWED_SENDERS`，只有指定的 QQ 用户可以使用控制命令（`/turnon`、`/turnoff`、`/toggle`、`/script`）。信息命令（`/info`、`/light`、`/switch`、`/search`、`/help`）对所有用户开放。
+- **权限控制**：如果设置了 `ALLOWED_SENDERS`，只有指定的 QQ 用户可以使用控制命令。
 
 - **重复别名警告**：如果多个实体共享相同的别名，机器人会警告你，但仍会控制第一个匹配项
 

@@ -171,7 +171,7 @@ The bot supports direct commands for faster device control without LLM processin
 
 - **Quoted Names**: Use quotes for entity names with spaces: `/turnon "Living Room Light"`
 
-- **Permission Control**: If `ALLOWED_SENDERS` is set, only specified QQ users can use control commands (`/turnon`, `/turnoff`, `/toggle`, `/script`). Information commands (`/info`, `/light`, `/switch`, `/search`, `/help`) are available to everyone.
+- **Permission Control**: If `ALLOWED_SENDERS` is set, only specified QQ users can use control commands. 
 
 - **Duplicate Alias Warning**: If multiple entities share the same alias, the bot will warn you but still control the first match
 
