@@ -1,6 +1,6 @@
 import json
 import os
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 
 import httpx
 
@@ -149,6 +149,80 @@ class HomeAssistantClient:
         except Exception as e:
             logger.error(f"Error getting live context: {e}")
             raise
+
+    async def get_states(self) -> List[Dict[str, Any]]:
+        """Get all entity states from Home Assistant
+        
+        Returns:
+            List of entity state dictionaries
+        """
+        url = "/api/states"
+        
+        try:
+            logger.debug("Fetching all entity states from HA")
+            
+            response = await self.client.get(url)
+            response.raise_for_status()
+            
+            states = response.json()
+            logger.debug(f"Received {len(states)} entity states")
+            
+            return states
+        except httpx.HTTPStatusError as e:
+            logger.error(f"HA get_states request failed: {e.response.status_code} - {e.response.text}")
+            raise
+        except Exception as e:
+            logger.error(f"Error getting states: {e}")
+            raise
+
+    async def get_entity_registry(self) -> Dict[str, Dict[str, Any]]:
+        """Get entity registry from Home Assistant
+        
+        Returns:
+            Dictionary mapping entity_id to entity registry entry
+        """
+        url = "/api/config/entity_registry/list"
+        
+        try:
+            logger.debug("Fetching entity registry from HA")
+            
+            response = await self.client.get(url)
+            response.raise_for_status()
+            
+            registry_list = response.json()
+            
+            # Convert list to dict for easier lookup
+            registry_dict = {}
+            for entry in registry_list:
+                entity_id = entry.get("entity_id", "")
+                if entity_id:
+                    registry_dict[entity_id] = entry
+            
+            logger.debug(f"Received {len(registry_dict)} entity registry entries")
+            
+            return registry_dict
+        except httpx.HTTPStatusError as e:
+            logger.error(f"HA get_entity_registry request failed: {e.response.status_code} - {e.response.text}")
+            raise
+        except Exception as e:
+            logger.error(f"Error getting entity registry: {e}")
+            raise
+
+    async def find_entity_by_alias(self, alias: str) -> Optional[str]:
+        """Find entity ID by alias (friendly_name or entity_id)
+        
+        This method now uses the cached entity list for better performance.
+        
+        Args:
+            alias: Alias name or entity ID to search for
+        
+        Returns:
+            Entity ID if found, None otherwise
+        """
+        from meteion.utils.entity_cache import find_entity_by_alias as cache_find
+        
+        # Use cached lookup
+        return cache_find(alias)
 
     async def close(self):
         await self.client.aclose()

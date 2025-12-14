@@ -111,15 +111,23 @@ async def _control_switch_task(
                 results = []
                 errors = []
                 
-                for entity_id in entity_ids:
+                for alias_or_id in entity_ids:
                     try:
+                        # Try to find entity ID by alias using cache
+                        from meteion.utils.entity_cache import find_entity_by_alias
+                        entity_id = find_entity_by_alias(alias_or_id)
+                        if not entity_id:
+                            errors.append((alias_or_id, "Entity not found"))
+                            logger.warning(f"Entity not found for alias/ID: {alias_or_id}")
+                            continue
+                        
                         # Extract domain from entity_id (e.g., 'light.xxx' -> 'light')
                         domain = _extract_domain(entity_id)
                         result = await client.call_service(domain, service, entity_id=entity_id)
-                        results.append((entity_id, True, result))
+                        results.append((alias_or_id, True, result))
                     except Exception as e:
-                        errors.append((entity_id, str(e)))
-                        logger.error(f"Error calling {service} for {entity_id}: {e}")
+                        errors.append((alias_or_id, str(e)))
+                        logger.error(f"Error calling {service} for {alias_or_id}: {e}")
                 
                 # Build response after processing all entities
                 action = _get_service_action(service)
@@ -245,6 +253,19 @@ def on_open(ws):
     """WebSocket connection opened"""
     set_ws_connection(ws)
     logger.info("WebSocket connection established")
+    
+    # Load entity cache in background
+    def load_cache():
+        from meteion.utils.entity_cache import load_entity_cache
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            loop.run_until_complete(load_entity_cache())
+        finally:
+            loop.close()
+    
+    cache_thread = threading.Thread(target=load_cache, daemon=True)
+    cache_thread.start()
 
 
 def on_message(ws, message):
