@@ -259,7 +259,7 @@ def toggle_handler(ws: WebSocketApp, message: dict):
 
 
 def _parse_climate_command(raw_message: str) -> Tuple[Optional[str], Optional[str], Optional[float]]:
-    """Parse climate command arguments
+    """Parse climate command arguments, supporting quoted entity names with spaces
     
     Args:
         raw_message: Raw message string starting with "/climate "
@@ -268,6 +268,11 @@ def _parse_climate_command(raw_message: str) -> Tuple[Optional[str], Optional[st
         Tuple of (entity_id, mode, temperature)
         mode can be: cool, heat, fan_only, off, or None
         temperature is float or None
+    
+    Examples:
+        /climate "Living Room AC" cool 26 -> ("Living Room AC", "cool", 26.0)
+        /climate 客厅空调 制冷 26 -> ("客厅空调", "cool", 26.0)
+        /climate ac temp 25 -> ("ac", None, 25.0)
     """
     if not raw_message.startswith("/climate "):
         return None, None, None
@@ -289,18 +294,68 @@ def _parse_climate_command(raw_message: str) -> Tuple[Optional[str], Optional[st
         "fan": "fan_only"
     }
     
-    parts = args.split()
-    if not parts:
+    # Parse entity ID first (supporting quoted names)
+    entity_id = None
+    remaining_args = []
+    current = ""
+    in_quotes = False
+    quote_char = None
+    entity_parsed = False
+    
+    i = 0
+    while i < len(args):
+        char = args[i]
+        
+        if not entity_parsed:
+            # Still parsing entity ID
+            if char in ['"', "'"]:
+                if not in_quotes:
+                    in_quotes = True
+                    quote_char = char
+                elif char == quote_char:
+                    in_quotes = False
+                    quote_char = None
+                    if current.strip():
+                        entity_id = current.strip()
+                        entity_parsed = True
+                        current = ""
+                else:
+                    current += char
+            elif char == ' ' and not in_quotes:
+                if current.strip():
+                    entity_id = current.strip()
+                    entity_parsed = True
+                    current = ""
+            else:
+                current += char
+        else:
+            # Entity ID parsed, collect remaining arguments
+            current += char
+        
+        i += 1
+    
+    # Handle case where entity ID is at the end (no quotes, no space after)
+    if not entity_parsed and current.strip():
+        entity_id = current.strip()
+        entity_parsed = True
+        current = ""
+    
+    if not entity_id:
         return None, None, None
     
-    entity_id = parts[0]
+    # Parse remaining arguments for mode and temperature
+    remaining = current.strip() if current else ""
+    if remaining:
+        remaining_parts = remaining.split()
+    else:
+        remaining_parts = []
+    
     mode = None
     temperature = None
     
-    # Parse remaining arguments
-    i = 1
-    while i < len(parts):
-        arg = parts[i].lower()
+    i = 0
+    while i < len(remaining_parts):
+        arg = remaining_parts[i].lower()
         
         # Check if it's a temperature value (number)
         if arg.replace('.', '').replace('-', '').isdigit():
@@ -309,18 +364,18 @@ def _parse_climate_command(raw_message: str) -> Tuple[Optional[str], Optional[st
             except ValueError:
                 pass
         # Check if it's "temp" keyword followed by temperature
-        elif arg == "temp" and i + 1 < len(parts):
+        elif arg == "temp" and i + 1 < len(remaining_parts):
             try:
-                temperature = float(parts[i + 1])
+                temperature = float(remaining_parts[i + 1])
                 i += 1  # Skip next token
             except (ValueError, IndexError):
                 pass
-        # Check if it's a mode
+        # Check if it's a mode (case-insensitive for English, exact match for Chinese)
         elif arg in mode_map:
             mode = mode_map[arg]
-        # Check Chinese mode names
-        elif arg in ["制冷", "制热", "通风", "关闭"]:
-            mode = mode_map[arg]
+        # Check Chinese mode names (case-sensitive)
+        elif remaining_parts[i] in ["制冷", "制热", "通风", "关闭"]:
+            mode = mode_map[remaining_parts[i]]
         
         i += 1
     

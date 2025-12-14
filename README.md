@@ -142,13 +142,15 @@ The bot supports direct commands for faster device control without LLM processin
   - Example: `/script my_script` or `/script script.my_script`
 
 - `/climate <entity_id> [mode] [temp]` - Control climate device
+  - Supports entity ID, friendly name, or alias (same as other commands)
   - Set mode: `cool`/`heat`/`fan_only`/`off` (or 制冷/制热/通风/关闭 in Chinese)
   - Set temperature: specify number or use `temp <number>`
+  - Supports quoted names with spaces: `/climate "Living Room AC" cool 26`
   - Examples:
     - `/climate living_room_ac cool 26` - Set to cool mode at 26°C
-    - `/climate 客厅空调 制冷 26` - Set to cool mode at 26°C (Chinese)
-    - `/climate living_room_ac temp 25` - Set temperature to 25°C only
-    - `/climate living_room_ac off` - Turn off climate device
+    - `/climate 客厅空调 制冷 26` - Set to cool mode at 26°C (Chinese, using friendly name)
+    - `/climate "Living Room AC" temp 25` - Set temperature to 25°C only (quoted name)
+    - `/climate my_ac_alias off` - Turn off climate device (using alias)
 
 #### Information Commands
 
