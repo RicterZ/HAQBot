@@ -53,12 +53,14 @@ class HomeAssistantClient:
         
         try:
             logger.info(f"Sending conversation request to HA: {text[:50]}...")
+            logger.debug(f"Request payload: {json.dumps(payload, ensure_ascii=False, indent=2)}")
             
             response = await self.client.post(url, json=payload)
             response.raise_for_status()
             
             result = response.json()
             logger.info(f"Received HA response (status: {response.status_code})")
+            logger.debug(f"HA response content: {json.dumps(result, ensure_ascii=False, indent=2)}")
             
             return result
         except httpx.HTTPStatusError as e:
@@ -94,12 +96,14 @@ class HomeAssistantClient:
         
         try:
             logger.info(f"Calling HA service: {domain}.{service} with entity_id={entity_id}")
+            logger.debug(f"Service call payload: {json.dumps(payload, ensure_ascii=False, indent=2)}")
             
             response = await self.client.post(url, json=payload)
             response.raise_for_status()
             
             result = response.json()
             logger.info(f"Service call successful (status: {response.status_code})")
+            logger.debug(f"Service call response: {json.dumps(result, ensure_ascii=False, indent=2)}")
             
             return result
         except httpx.HTTPStatusError as e:
@@ -129,12 +133,14 @@ class HomeAssistantClient:
         
         try:
             logger.info(f"Requesting live context from HA agent: {agent_id}")
+            logger.debug(f"GetLiveContext payload: {json.dumps(payload, ensure_ascii=False, indent=2)}")
             
             response = await self.client.post(url, json=payload)
             response.raise_for_status()
             
             result = response.json()
             logger.info(f"Received live context (status: {response.status_code})")
+            logger.debug(f"Live context response: {json.dumps(result, ensure_ascii=False, indent=2)}")
             
             return result
         except httpx.HTTPStatusError as e:
