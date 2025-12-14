@@ -1,12 +1,16 @@
 import json
+import asyncio
+import threading
+from typing import Optional, List
 
 from websocket import WebSocketApp
 
 from meteion.utils import CommandEncoder
 from meteion.utils.logger import logger
-from meteion.models.message import Command, CommandType, TextMessage
+from meteion.models.message import Command, CommandType, TextMessage, ReplyMessage
 from meteion.handlers.conversation import conversation_handler, clear_conversation_context
 from meteion.bot.connection import set_ws_connection
+from meteion.clients.homeassistant import HomeAssistantClient
 
 
 def echo_handler(ws: WebSocketApp, message: dict):
@@ -28,10 +32,12 @@ def clear_handler(ws: WebSocketApp, message: dict):
     message_id = message.get("message_id")
     
     cleared = clear_conversation_context(group_id)
-    
     response_text = "Conversation context cleared." if cleared else "No conversation context to clear."
-    
-    from meteion.models.message import ReplyMessage
+    _send_response(ws, group_id, message_id, response_text)
+
+
+def _send_response(ws: WebSocketApp, group_id: str, message_id: Optional[str], response_text: str):
+    """Helper function to send response message"""
     message_segments = []
     if message_id:
         message_segments.append(ReplyMessage(message_id))
@@ -45,6 +51,176 @@ def clear_handler(ws: WebSocketApp, message: dict):
         }
     )
     ws.send(json.dumps(command, cls=CommandEncoder))
+
+
+def _run_async_task(coro):
+    """Helper function to run async task in separate thread"""
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
+        loop.run_until_complete(coro)
+    finally:
+        loop.close()
+
+
+def _parse_entity_ids(raw_message: str, command_prefix: str) -> List[str]:
+    """Parse entity IDs from command message"""
+    if not raw_message.startswith(command_prefix):
+        return []
+    
+    args = raw_message[len(command_prefix):].strip()
+    if not args:
+        return []
+    
+    return [eid.strip() for eid in args.split() if eid.strip()]
+
+
+_SERVICE_ACTIONS = {
+    "turn_on": "打开",
+    "turn_off": "关闭",
+    "toggle": "切换"
+}
+
+
+async def _control_switch_task(
+    ws: WebSocketApp,
+    group_id: str,
+    message_id: Optional[str],
+    service: str,
+    entity_ids: List[str]
+):
+    """Async task: control switch(es) with specified service"""
+    try:
+        client = HomeAssistantClient()
+        try:
+            if not entity_ids:
+                service_name = service.replace('_', '')
+                response_text = f"请指定实体ID。用法: /{service_name} <实体ID> [<实体ID2> ...]"
+            else:
+                results = []
+                errors = []
+                
+                for entity_id in entity_ids:
+                    try:
+                        result = await client.call_service("switch", service, entity_id=entity_id)
+                        results.append((entity_id, True, result))
+                    except Exception as e:
+                        errors.append((entity_id, str(e)))
+                        logger.error(f"Error calling {service} for {entity_id}: {e}")
+                
+                action = _SERVICE_ACTIONS.get(service, service.replace('_', ' '))
+                
+                if errors and not results:
+                    error_msgs = [f"{eid}: {err}" for eid, err in errors]
+                    response_text = f"{action}失败:\n" + "\n".join(error_msgs)
+                elif errors:
+                    success_count = len(results)
+                    error_msgs = [f"{eid}: {err}" for eid, err in errors]
+                    response_text = f"成功{action}了 {success_count} 个实体。\n错误:\n" + "\n".join(error_msgs)
+                else:
+                    entity_list = ", ".join(entity_ids)
+                    response_text = f"成功{action}: {entity_list}"
+                    
+        except Exception as e:
+            logger.error(f"Error in {service} task: {e}", exc_info=True)
+            action = _SERVICE_ACTIONS.get(service, service.replace('_', ' '))
+            response_text = f"执行{action}时出错: {str(e)}"
+        finally:
+            await client.close()
+        
+        _send_response(ws, group_id, message_id, response_text)
+    except Exception as e:
+        logger.error(f"Error in control_switch_task: {e}", exc_info=True)
+        _send_response(ws, group_id, message_id, f"处理命令时出错: {str(e)}")
+
+
+def turn_on_handler(ws: WebSocketApp, message: dict):
+    """Handle /turnon command"""
+    group_id = message["group_id"]
+    message_id = message.get("message_id")
+    raw_message = message.get("raw_message", "").strip()
+    
+    entity_ids = _parse_entity_ids(raw_message, "/turnon ")
+    task = _control_switch_task(ws, group_id, message_id, "turn_on", entity_ids)
+    thread = threading.Thread(target=_run_async_task, args=(task,), daemon=True)
+    thread.start()
+
+
+def turn_off_handler(ws: WebSocketApp, message: dict):
+    """Handle /turnoff command"""
+    group_id = message["group_id"]
+    message_id = message.get("message_id")
+    raw_message = message.get("raw_message", "").strip()
+    
+    entity_ids = _parse_entity_ids(raw_message, "/turnoff ")
+    task = _control_switch_task(ws, group_id, message_id, "turn_off", entity_ids)
+    thread = threading.Thread(target=_run_async_task, args=(task,), daemon=True)
+    thread.start()
+
+
+def toggle_handler(ws: WebSocketApp, message: dict):
+    """Handle /toggle command"""
+    group_id = message["group_id"]
+    message_id = message.get("message_id")
+    raw_message = message.get("raw_message", "").strip()
+    
+    entity_ids = _parse_entity_ids(raw_message, "/toggle ")
+    task = _control_switch_task(ws, group_id, message_id, "toggle", entity_ids)
+    thread = threading.Thread(target=_run_async_task, args=(task,), daemon=True)
+    thread.start()
+
+
+async def _info_task(ws: WebSocketApp, group_id: str, message_id: Optional[str]):
+    """Async task: get live context information"""
+    try:
+        client = HomeAssistantClient()
+        try:
+            result = await client.get_live_context()
+            
+            response_text = ""
+            if isinstance(result, dict):
+                response = result.get("response", {})
+                
+                if isinstance(response, dict):
+                    speech = response.get("speech", {})
+                    if isinstance(speech, dict):
+                        plain = speech.get("plain", {})
+                        if isinstance(plain, dict):
+                            response_text = plain.get("speech", "")
+                        elif isinstance(plain, str):
+                            response_text = plain
+                    elif isinstance(speech, str):
+                        response_text = speech
+                
+                if not response_text and isinstance(response, str):
+                    response_text = response
+                
+                if not response_text:
+                    response_text = result.get("speech", "")
+            
+            if not response_text:
+                response_text = str(result) if result else "无法获取环境信息"
+                
+        except Exception as e:
+            logger.error(f"Error getting live context: {e}", exc_info=True)
+            response_text = f"获取环境信息时出错: {str(e)}"
+        finally:
+            await client.close()
+        
+        _send_response(ws, group_id, message_id, response_text)
+    except Exception as e:
+        logger.error(f"Error in info_task: {e}", exc_info=True)
+        _send_response(ws, group_id, message_id, f"处理命令时出错: {str(e)}")
+
+
+def info_handler(ws: WebSocketApp, message: dict):
+    """Handle /info command"""
+    group_id = message["group_id"]
+    message_id = message.get("message_id")
+    
+    task = _info_task(ws, group_id, message_id)
+    thread = threading.Thread(target=_run_async_task, args=(task,), daemon=True)
+    thread.start()
 
 
 def on_error(ws, error):
@@ -70,6 +246,14 @@ def on_message(ws, message):
         echo_handler(ws, message)
     elif raw_message == "/clear":
         clear_handler(ws, message)
+    elif raw_message.startswith("/turnon "):
+        turn_on_handler(ws, message)
+    elif raw_message.startswith("/turnoff "):
+        turn_off_handler(ws, message)
+    elif raw_message.startswith("/toggle "):
+        toggle_handler(ws, message)
+    elif raw_message == "/info":
+        info_handler(ws, message)
     elif raw_message:
         conversation_handler(ws, message)
 

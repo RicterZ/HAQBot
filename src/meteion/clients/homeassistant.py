@@ -68,6 +68,82 @@ class HomeAssistantClient:
             logger.error(f"Error processing conversation request: {e}")
             raise
 
+    async def call_service(
+        self,
+        domain: str,
+        service: str,
+        entity_id: Optional[str] = None,
+        **kwargs
+    ) -> Dict[str, Any]:
+        """Call Home Assistant service
+        
+        Args:
+            domain: Service domain (e.g., 'switch', 'light')
+            service: Service name (e.g., 'turn_on', 'turn_off')
+            entity_id: Entity ID (optional)
+            **kwargs: Other service parameters
+        """
+        url = f"/api/services/{domain}/{service}"
+        payload = {}
+        
+        if entity_id:
+            payload["entity_id"] = entity_id
+        
+        if kwargs:
+            payload.update(kwargs)
+        
+        try:
+            logger.info(f"Calling HA service: {domain}.{service} with entity_id={entity_id}")
+            
+            response = await self.client.post(url, json=payload)
+            response.raise_for_status()
+            
+            result = response.json()
+            logger.info(f"Service call successful (status: {response.status_code})")
+            
+            return result
+        except httpx.HTTPStatusError as e:
+            logger.error(f"HA service call failed: {e.response.status_code} - {e.response.text}")
+            raise
+        except Exception as e:
+            logger.error(f"Error calling HA service: {e}")
+            raise
+
+    async def get_live_context(
+        self,
+        agent_id: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """Get live context information (GetLiveContext)
+        
+        Args:
+            agent_id: Conversation agent ID (optional, defaults to configured agent_id)
+        """
+        if agent_id is None:
+            agent_id = self.agent_id
+        
+        url = "/api/conversation/process"
+        payload = {
+            "text": "GetLiveContext",
+            "agent_id": agent_id,
+        }
+        
+        try:
+            logger.info(f"Requesting live context from HA agent: {agent_id}")
+            
+            response = await self.client.post(url, json=payload)
+            response.raise_for_status()
+            
+            result = response.json()
+            logger.info(f"Received live context (status: {response.status_code})")
+            
+            return result
+        except httpx.HTTPStatusError as e:
+            logger.error(f"HA GetLiveContext request failed: {e.response.status_code} - {e.response.text}")
+            raise
+        except Exception as e:
+            logger.error(f"Error getting live context: {e}")
+            raise
+
     async def close(self):
         await self.client.aclose()
 
