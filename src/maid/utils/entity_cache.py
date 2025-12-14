@@ -141,10 +141,16 @@ def get_devices_by_domain(domain: str) -> Dict[Optional[str], List[Dict[str, Any
     devices_by_area = {}
     device_entities_map = {}
     device_name_map = {}
+    device_area_map = {}
     
+    # Build device name and area_id maps from device_cache
     if device_cache:
         for device in device_cache:
-            device_name_map[device.get("id")] = device.get("name", "")
+            device_id = device.get("id")
+            if device_id:
+                device_name_map[device_id] = device.get("name", "")
+                # area_id is stored in device object, not entity attributes
+                device_area_map[device_id] = device.get("area_id")
     
     for state in cache:
         entity_id = state.get("entity_id", "")
@@ -153,13 +159,15 @@ def get_devices_by_domain(domain: str) -> Dict[Optional[str], List[Dict[str, Any
         
         attributes = state.get("attributes", {})
         device_id = attributes.get("device_id")
-        area_id = attributes.get("area_id")
         entity_state = state.get("state", "")
         
         if not device_id:
             device_id = f"virtual_{entity_id}"
         
         if device_id not in device_entities_map:
+            # Get area_id from device_cache first, fallback to entity attributes
+            area_id = device_area_map.get(device_id) or attributes.get("area_id")
+            
             device_name = (
                 device_name_map.get(device_id) or
                 attributes.get("device_name") or
