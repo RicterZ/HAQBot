@@ -397,11 +397,15 @@ async def _climate_control_task(
             from maid.utils.entity_cache import find_entity_by_alias
             
             # Find entity by alias or ID
+            logger.debug(f"Searching for climate entity with alias/ID: {entity_id}")
             actual_entity_id, all_matches = find_entity_by_alias(entity_id)
             if not actual_entity_id:
+                logger.warning(f"Climate entity not found for alias/ID: {entity_id}")
                 response_text = t("entity_not_found")
                 send_response(ws, group_id, message_id, response_text)
                 return
+            
+            logger.info(f"Found climate entity: {actual_entity_id} for alias/ID: {entity_id}")
             
             warning_msg = ""
             if len(all_matches) > 1:
@@ -805,6 +809,11 @@ def _get_commands_list() -> List[Dict[str, str]]:
             "emoji": "🔍"
         },
         {
+            "command": "/refresh",
+            "description": t("refresh_command_description"),
+            "emoji": "🔄"
+        },
+        {
             "command": "/clear",
             "description": t("clear_command_description"),
             "emoji": "🗑️"
@@ -948,6 +957,35 @@ def help_handler(ws: WebSocketApp, message: dict):
     send_response(ws, group_id, message_id, response_text)
 
 
+async def _refresh_cache_task(ws: WebSocketApp, group_id: str, message_id: Optional[str]):
+    """Async task: refresh entity cache"""
+    try:
+        from maid.utils.entity_cache import load_entity_cache
+        
+        logger.info("Refreshing entity cache...")
+        success = await load_entity_cache()
+        
+        if success:
+            response_text = t("cache_refreshed")
+        else:
+            response_text = t("cache_refresh_failed")
+        
+        send_response(ws, group_id, message_id, response_text)
+    except Exception as e:
+        logger.error(f"Error refreshing cache: {e}", exc_info=True)
+        send_response(ws, group_id, message_id, t("error_processing_command", error=str(e)))
+
+
+def refresh_handler(ws: WebSocketApp, message: dict):
+    """Handle /refresh command"""
+    group_id = message["group_id"]
+    message_id = message.get("message_id")
+    
+    task = _refresh_cache_task(ws, group_id, message_id)
+    thread = threading.Thread(target=run_async_task, args=(task,), daemon=True)
+    thread.start()
+
+
 def on_error(ws, error):
     logger.error(error)
 
@@ -1003,6 +1041,8 @@ def on_message(ws, message):
         climate_handler(ws, message)
     elif raw_message.startswith("/search "):
         search_handler(ws, message)
+    elif raw_message == "/refresh":
+        refresh_handler(ws, message)
     elif raw_message == "/help":
         help_handler(ws, message)
     elif raw_message:

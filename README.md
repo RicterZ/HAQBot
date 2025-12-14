@@ -169,6 +169,10 @@ The bot supports direct commands for faster device control without LLM processin
   - Returns matching entities with their entity ID and friendly name
   - Example: `/search 灯` or `/search light`
 
+- `/refresh` - Refresh entity cache
+  - Reloads entities, devices, areas, and aliases from Home Assistant
+  - Useful after adding new entities or updating aliases
+
 - `/help` - Show all supported commands and descriptions
 
 #### Command Features

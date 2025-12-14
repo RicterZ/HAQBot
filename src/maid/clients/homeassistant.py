@@ -211,6 +211,62 @@ class HomeAssistantClient:
             logger.error(f"Error getting devices: {e}")
             raise
 
+    async def get_entity_aliases(self) -> Dict[str, List[str]]:
+        """Get aliases for all entities using template API
+        
+        Returns:
+            Dictionary mapping entity_id to list of aliases
+        """
+        template = """
+{
+  "entities": [
+    {%- for entity_id in states | map(attribute='entity_id') | list -%}
+    {
+      "entity_id": "{{ entity_id }}",
+      "aliases": {{ entity_registry(entity_id).aliases | default([]) | tojson }}
+    }{%- if not loop.last -%},{%- endif -%}
+    {%- endfor -%}
+  ]
+}
+"""
+        url = "/api/template"
+        
+        try:
+            logger.debug("Fetching entity aliases using template API")
+            
+            response = await self.client.post(url, json={"template": template})
+            response.raise_for_status()
+            
+            result = response.json()
+            entities = result.get("entities", [])
+            logger.info(f"Received alias information for {len(entities)} entities")
+            
+            # Convert list to dict for easier lookup
+            entity_aliases = {}
+            entities_with_aliases = 0
+            for entity in entities:
+                entity_id = entity.get("entity_id")
+                aliases = entity.get("aliases", [])
+                if entity_id:
+                    if isinstance(aliases, list) and aliases:
+                        entity_aliases[entity_id] = [str(a) for a in aliases if a]
+                        entities_with_aliases += 1
+                    else:
+                        entity_aliases[entity_id] = []
+            
+            logger.info(f"Entity aliases: {entities_with_aliases}/{len(entities)} entities have aliases")
+            return entity_aliases
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 404:
+                logger.warning("Template API not available (404). Cannot get entity aliases.")
+                return {}
+            logger.error(f"HA template API request failed: {e.response.status_code} - {e.response.text}")
+            raise
+        except Exception as e:
+            logger.warning(f"Error getting entity aliases: {e}")
+            # Don't raise, just return empty dict
+            return {}
+
     async def get_entity_areas(self) -> Dict[str, str]:
         """Get area information for all entities using template API
         

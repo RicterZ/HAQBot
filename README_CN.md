@@ -169,6 +169,10 @@ TENCENT_ASR_REGION=
   - 返回匹配的实体及其实体 ID 和友好名称
   - 示例：`/search 灯` 或 `/search light`
 
+- `/refresh` - 刷新实体缓存
+  - 重新从 Home Assistant 加载实体、设备、区域和别名信息
+  - 在添加新实体或更新别名后很有用
+
 - `/help` - 显示所有支持的命令和描述
 
 #### 命令特性
