@@ -308,19 +308,48 @@ class HomeAssistantClient:
             logger.error(f"Error getting areas: {e}")
             raise
 
-    def _is_device_temperature_sensor(self, entity_id: str, device_id: Optional[str], all_states: List[Dict[str, Any]]) -> bool:
+    def _is_device_temperature_sensor(self, entity_id: str, device_id: Optional[str], friendly_name: str, all_states: List[Dict[str, Any]]) -> bool:
         """Check if a temperature sensor belongs to a device (not ambient temperature)
         
         Args:
             entity_id: The temperature sensor entity ID
             device_id: The device ID of the sensor
+            friendly_name: The friendly name of the sensor
             all_states: All entity states to check device entities
         
         Returns:
             True if this is a device temperature sensor, False if ambient
         """
+        # Keywords that indicate device temperature (not ambient)
+        device_keywords = [
+            # Chinese keywords
+            "插座", "电源", "设备温度", "设备", "电暖器", "加热器", "开关",
+            # English keywords
+            "outlet", "socket", "plug", "power", "device temperature", "device temp",
+            "heater", "switch", "thermostat", "climate"
+        ]
+        
+        # Check entity ID and friendly name for device keywords
+        entity_id_lower = entity_id.lower()
+        friendly_name_lower = friendly_name.lower()
+        
+        for keyword in device_keywords:
+            if keyword.lower() in entity_id_lower or keyword.lower() in friendly_name_lower:
+                return True
+        
         if not device_id:
             return False
+        
+        # Check device name from device cache
+        from maid.utils.entity_cache import get_device_cache
+        device_cache = get_device_cache() or []
+        for device in device_cache:
+            if device.get("id") == device_id:
+                device_name = device.get("name", "").lower()
+                for keyword in device_keywords:
+                    if keyword.lower() in device_name:
+                        return True
+                break
         
         # Device types that typically have device temperature sensors
         device_control_domains = ["climate", "switch", "light", "fan", "heater", "thermostat"]
@@ -398,8 +427,8 @@ class HomeAssistantClient:
                     device_id = attributes.get("device_id")
                     
                     if device_class == "temperature" or "temperature" in entity_id.lower():
-                        # Filter out device temperature sensors (e.g., heater device temperature)
-                        if not self._is_device_temperature_sensor(entity_id, device_id, states):
+                        # Filter out device temperature sensors (e.g., heater device temperature, socket temperature)
+                        if not self._is_device_temperature_sensor(entity_id, device_id, friendly_name, states):
                             context["temperature_sensors"].append({
                                 "entity_id": entity_id,
                                 "friendly_name": friendly_name,
