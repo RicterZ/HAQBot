@@ -37,7 +37,8 @@ def download_video_stream(url: str, output_path: Optional[str] = None, duration:
         url_lower = url.lower()
         is_stream = (
             url.startswith(('rtsp://', 'rtmp://', 'rtspt://', 'rtmpt://')) or
-            '.m3u8' in url_lower
+            '.m3u8' in url_lower or
+            'smartcamera.api.io.mi.com' in url_lower # xiaomi camera stream
         )
         
         if is_stream:
@@ -58,6 +59,8 @@ def download_video_stream(url: str, output_path: Optional[str] = None, duration:
             # For direct video files, just download/convert
             cmd = [
                 'ffmpeg',
+                '-extension_picky', '0',
+                '-allowed_extensions', 'ALL',
                 '-i', url,
                 '-c', 'copy',
                 '-y',
