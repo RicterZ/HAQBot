@@ -1,7 +1,9 @@
 version: "3"
 services:
   homeassistant-qq:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
     container_name: homeassistant-qq
     restart: unless-stopped
     environment:
