@@ -68,7 +68,7 @@ NAPCAT_API=ws://napcat:3001
 # Home Assistant 配置
 HA_URL=http://homeassistant:8123
 HA_TOKEN=你的长期访问令牌
-HA_AGENT_ID=conversant.ollama_conversation
+HA_AGENT_ID=conversation.ollama_conversation
 
 # QQ 账号（必需）- 机器人的 QQ 号
 ACCOUNT=your_qq_account_number
@@ -114,7 +114,7 @@ TENCENT_ASR_REGION=
 
 #### 对话代理
 
-确保在 Home Assistant 中配置了 `conversant.ollama_conversation` 对话代理。
+确保在 Home Assistant 中配置了 `conversation.ollama_conversation` 对话代理。
 
 <img width="1917" height="1542" alt="image" src="https://github.com/user-attachments/assets/152701e6-7a0b-441e-a8cb-34e58c706811" />
 

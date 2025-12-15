@@ -69,7 +69,7 @@ NAPCAT_API=ws://napcat:3001
 # Home Assistant configuration
 HA_URL=http://homeassistant:8123
 HA_TOKEN=your_long_lived_access_token_here
-HA_AGENT_ID=conversant.ollama_conversation
+HA_AGENT_ID=conversation.ollama_conversation
 
 # QQ account (required) - Bot's QQ number
 ACCOUNT=your_qq_account_number
@@ -115,7 +115,7 @@ TENCENT_ASR_REGION=
 
 #### Conversation Agent
 
-Ensure that the `conversant.ollama_conversation` conversation agent is configured in Home Assistant.
+Ensure that the `conversation.ollama_conversation` conversation agent is configured in Home Assistant.
 
 <img width="1917" height="1542" alt="image" src="https://github.com/user-attachments/assets/152701e6-7a0b-441e-a8cb-34e58c706811" />
 

@@ -13,7 +13,7 @@ class HomeAssistantClient:
     def __init__(self):
         self.base_url = os.getenv("HA_URL", "http://homeassistant:8123")
         self.token = os.getenv("HA_TOKEN", "")
-        self.agent_id = os.getenv("HA_AGENT_ID", "conversant.ollama_conversation")
+        self.agent_id = os.getenv("HA_AGENT_ID", "conversation.ollama_conversation")
         
         if not self.token:
             raise ValueError("HA_TOKEN environment variable is not set")
