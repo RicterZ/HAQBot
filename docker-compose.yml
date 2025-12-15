@@ -9,7 +9,7 @@ services:
     ports:
       - "8080:8080"
     volumes:
-      - ./.env.local:/app/.env:ro
+      - ./.env:/app/.env:ro
       - ./data/napcat/videos:/data/napcat/videos
     hostname: homeassistant-qq
     networks:
