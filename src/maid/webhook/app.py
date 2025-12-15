@@ -1,5 +1,5 @@
 import os
-from typing import Optional
+from typing import Optional, Literal
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
@@ -7,6 +7,7 @@ from maid.bot.sender import send_group_message, send_group_multimodal_message
 from maid.utils.logger import logger
 from maid.utils.i18n import t
 from maid.utils.video import download_video_stream_async
+from maid.utils.download import detect_url_type, download_image_async, download_file_async
 
 
 app = FastAPI(title="Home Assistant QQ Bot Webhook")
@@ -57,7 +58,7 @@ async def notify(request: WebhookRequest):
 @app.post("/webhook/multimodal")
 async def multimodal_notify(request: MultimodalWebhookRequest):
     """
-    Webhook endpoint for sending multimodal messages (text + file/video)
+    Webhook endpoint for sending multimodal messages (text + file/video/image)
     
     Request body:
     {
@@ -65,8 +66,13 @@ async def multimodal_notify(request: MultimodalWebhookRequest):
         "message": "Optional text message",
         "url": "http://example.com/video_stream.m3u8",
         "token": "optional_webhook_token",
-        "duration": 60  // Optional: video stream duration in seconds
+        "duration": 60  // Optional: video stream duration in seconds (for streams only)
     }
+    
+    URL types supported:
+    - Video streams: rtsp://, m3u8, and common video formats (.mp4, .avi, .mov, etc.)
+    - Images: .jpg, .jpeg, .png, .gif, .bmp, .webp, etc.
+    - Files: Other formats will be sent as file messages
     """
     webhook_token = os.getenv("WEBHOOK_TOKEN", "")
     
@@ -80,24 +86,63 @@ async def multimodal_notify(request: MultimodalWebhookRequest):
         raise HTTPException(status_code=400, detail=t("message_or_url_required"))
     
     file_path = None
+    file_type: Optional[Literal["video", "image", "file"]] = None
     
     if request.url:
         try:
-            logger.info(f"Processing video stream from URL: {request.url}")
-            file_path = await download_video_stream_async(
-                request.url,
-                duration=request.duration or 60
-            )
+            # Detect URL type
+            url_type = detect_url_type(request.url)
+            logger.info(f"Detected URL type: {url_type} for URL: {request.url}")
             
-            if not file_path:
-                raise HTTPException(
-                    status_code=500,
-                    detail=t("failed_to_download_video_stream")
+            if url_type == "video":
+                # Use ffmpeg for video streams and video files
+                logger.info(f"Processing video from URL: {request.url}")
+                file_path = await download_video_stream_async(
+                    request.url,
+                    duration=request.duration or 60
                 )
-            
-            logger.info(f"Video stream downloaded to: {file_path}")
+                file_type = "video"
+                
+                if not file_path:
+                    raise HTTPException(
+                        status_code=500,
+                        detail=t("failed_to_download_video_stream")
+                    )
+                
+                logger.info(f"Video downloaded to: {file_path}")
+                
+            elif url_type == "image":
+                # Download image using httpx
+                logger.info(f"Downloading image from URL: {request.url}")
+                file_path = await download_image_async(request.url)
+                file_type = "image"
+                
+                if not file_path:
+                    raise HTTPException(
+                        status_code=500,
+                        detail="Failed to download image"
+                    )
+                
+                logger.info(f"Image downloaded to: {file_path}")
+                
+            else:
+                # Download as generic file
+                logger.info(f"Downloading file from URL: {request.url}")
+                file_path = await download_file_async(request.url)
+                file_type = "file"
+                
+                if not file_path:
+                    raise HTTPException(
+                        status_code=500,
+                        detail="Failed to download file"
+                    )
+                
+                logger.info(f"File downloaded to: {file_path}")
+                
+        except HTTPException:
+            raise
         except Exception as e:
-            logger.error(f"Error processing video stream: {e}")
+            logger.error(f"Error processing URL: {e}", exc_info=True)
             if file_path and os.path.exists(file_path):
                 try:
                     os.remove(file_path)
@@ -105,20 +150,22 @@ async def multimodal_notify(request: MultimodalWebhookRequest):
                     pass
             raise HTTPException(
                 status_code=500,
-                detail=t("failed_to_process_video_stream", error=str(e))
+                detail=f"Failed to process URL: {str(e)}"
             )
     
     success = send_group_multimodal_message(
         group_id=request.group_id,
         message=request.message,
-        file_path=file_path
+        file_path=file_path,
+        file_type=file_type
     )
     
     if success:
         return {
             "status": "ok",
             "message": t("multimodal_notification_sent"),
-            "file_path": file_path
+            "file_path": file_path,
+            "file_type": file_type
         }
     else:
         if file_path and os.path.exists(file_path):
