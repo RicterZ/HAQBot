@@ -6,8 +6,12 @@ from pydantic import BaseModel
 from maid.bot.sender import send_group_message, send_group_multimodal_message
 from maid.utils.logger import logger
 from maid.utils.i18n import t
-from maid.utils.video import download_video_stream_async
-from maid.utils.download import detect_url_type, download_image_async, download_file_async
+from maid.utils.download import (
+    detect_url_type, 
+    download_image_async, 
+    download_file_async,
+    download_video_stream_async
+)
 
 
 app = FastAPI(title="Home Assistant QQ Bot Webhook")
