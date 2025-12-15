@@ -82,6 +82,12 @@ DISPLAY_NICKNAME=メイド
 # If empty, all users can control devices
 ALLOWED_SENDERS=123456789 987654321
 
+# Group control (optional)
+# Comma or space separated QQ group numbers allowed to receive bot responses
+# If empty, bot will respond in all groups
+# If not empty, bot will only respond in specified groups, ignoring others
+ALLOWED_GROUPS=123456789 987654321
+
 # Language setting (optional, default: zh_CN)
 LANGUAGE=zh_CN
 
@@ -214,7 +220,8 @@ The bot supports direct commands for faster device control without LLM processin
 
 - **Quoted Names**: Use quotes for entity names with spaces: `/turnon "Living Room Light"`
 
-- **Permission Control**: If `ALLOWED_SENDERS` is set, only specified QQ users can use control commands. 
+- **Permission Control**: If `ALLOWED_SENDERS` is set, only specified QQ users can use control commands.
+- **Group Control**: If `ALLOWED_GROUPS` is set, bot will only respond in specified groups; if empty, bot responds in all groups. 
 
 - **Duplicate Name Warning**: If multiple entities share the same friendly name, the bot will warn you but still control the first match
 

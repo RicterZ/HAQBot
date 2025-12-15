@@ -49,6 +49,21 @@ def _get_allowed_senders() -> Optional[List[str]]:
     return qq_list if qq_list else None
 
 
+def _get_allowed_groups() -> Optional[List[str]]:
+    """Get list of allowed group QQ numbers from environment variable
+    
+    Returns:
+        List of allowed group QQ numbers, or None if all groups are allowed
+    """
+    allowed = os.getenv("ALLOWED_GROUPS", "").strip()
+    if not allowed:
+        return None
+    
+    # Support comma or space separated QQ numbers (same as ALLOWED_SENDERS)
+    qq_list = [qq.strip() for qq in allowed.replace(",", " ").split() if qq.strip()]
+    return qq_list if qq_list else None
+
+
 def _is_sender_allowed(message: dict) -> bool:
     """Check if the sender is allowed to control devices
     
@@ -72,6 +87,31 @@ def _is_sender_allowed(message: dict) -> bool:
     
     user_id_str = str(user_id)
     return user_id_str in allowed_senders
+
+
+def _is_group_allowed(message: dict) -> bool:
+    """Check if the group is allowed to receive bot responses
+    
+    Args:
+        message: Message dictionary from WebSocket
+    
+    Returns:
+        True if group is allowed, False otherwise
+    """
+    allowed_groups = _get_allowed_groups()
+    
+    if allowed_groups is None:
+        return True
+    
+    # Get group ID from message
+    group_id = message.get("group_id")
+    
+    if not group_id:
+        logger.warning(f"Cannot determine group QQ number from message. Available keys: {list(message.keys())}")
+        return False
+    
+    group_id_str = str(group_id)
+    return group_id_str in allowed_groups
 
 
 def on_error(ws, error):
@@ -106,6 +146,9 @@ def on_message(ws, message):
 
     raw_message = message.get("raw_message", "").strip()
     if not _is_sender_allowed(message):
+        return
+    
+    if not _is_group_allowed(message):
         return
     
     # Route commands to appropriate handlers
