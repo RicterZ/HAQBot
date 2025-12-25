@@ -192,7 +192,10 @@ def download_video_stream(url: str, output_path: Optional[str] = None, duration:
                 '-allowed_extensions', 'ALL',
                 '-i', url,
                 '-t', str(duration),
-                '-c', 'copy',
+                '-c:v', 'libx264',
+                '-profile:v', 'main',
+                '-c:a', 'aac',
+                '-movflags', '+faststart',
                 '-f', 'mp4',
                 '-y',
                 output_path
@@ -205,7 +208,7 @@ def download_video_stream(url: str, output_path: Optional[str] = None, duration:
                 '-extension_picky', '0',
                 '-allowed_extensions', 'ALL',
                 '-i', url,
-                '-c', 'copy',
+                '-c:v', 'libx264',
                 '-y',
                 output_path
             ]
