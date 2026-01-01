@@ -25,6 +25,7 @@ class WebhookRequest(BaseModel):
 
 class MultimodalWebhookRequest(BaseModel):
     group_id: str
+    title: Optional[str] = None
     message: Optional[str] = None
     url: Optional[str] = None
     token: Optional[str] = None
@@ -67,6 +68,7 @@ async def multimodal_notify(request: MultimodalWebhookRequest):
     Request body:
     {
         "group_id": "123456789",
+        "title": "Optional title",
         "message": "Optional text message",
         "url": "http://example.com/video_stream.m3u8",
         "token": "optional_webhook_token",
@@ -159,6 +161,7 @@ async def multimodal_notify(request: MultimodalWebhookRequest):
     
     success = send_group_multimodal_message(
         group_id=request.group_id,
+        title=request.title,
         message=request.message,
         file_path=file_path,
         file_type=file_type

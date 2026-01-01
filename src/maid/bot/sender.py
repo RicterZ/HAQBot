@@ -48,6 +48,7 @@ def send_group_message(group_id: str, message: str) -> bool:
 
 def send_group_multimodal_message(
     group_id: str, 
+    title: Optional[str] = None,
     message: Optional[str] = None, 
     file_path: Optional[str] = None,
     file_type: Optional[Literal["image", "video", "file"]] = None,
@@ -58,6 +59,7 @@ def send_group_multimodal_message(
     
     Args:
         group_id: QQ group ID
+        title: Optional title text
         message: Optional message text
         file_path: Optional file path to send (video, image, or other files)
         file_type: Optional file type ("image", "video", or "file"). If not provided, will be inferred from file_path
@@ -128,13 +130,7 @@ def send_group_multimodal_message(
             
             nodes.append(file_node)
         
-        time_node = ForwardNode(
-            user_id=user_id,
-            nickname=display_nickname,
-            content=[TextMessage(timestamp)]
-        )
-        nodes.append(time_node)
-        source = f"{display_nickname} WARNING"
+        source = title or f"{display_nickname} WARNING"
         
         message_text = message or ""
         news = [{"text": message_text}]
