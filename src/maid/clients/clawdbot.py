@@ -7,6 +7,7 @@ from typing import Optional, List, Dict, Any
 from moltbot import GatewayWebSocketClient, GatewayError
 
 from maid.utils.logger import logger
+from maid.utils.i18n import t
 
 
 def clawdbot_enabled() -> bool:
@@ -134,10 +135,10 @@ class _ClawdbotManager:
             )
             payload: Dict[str, Any] = await asyncio.wait_for(fut, timeout=wait_timeout)  # type: ignore
             response_text = _extract_text(payload) or ""
-            return response_text.strip() or "Request processed."
+            return response_text.strip() or t("request_processed")
         except asyncio.TimeoutError:
             logger.warning("Clawdbot wait timed out run_id=%s", run_id)
-            return "Request processed."
+            return t("request_processed")
         except GatewayError as exc:
             logger.error("Clawdbot gateway error: %s", exc)
             self._client = None
