@@ -382,18 +382,17 @@ description = "Python SDK and CLI for the Moltbot Gateway WebSocket"
 optional = false
 python-versions = ">=3.11"
 groups = ["main"]
-files = []
-develop = false
+files = [
+    {file = "v0.0.1.zip", hash = "sha256:cf03a834bd3586992b60dc221f143c1198e39f7fe3aab1f291ce10dbb2ae6d07"},
+]
 
 [package.dependencies]
 cryptography = ">=42,<43"
 websockets = ">=12,<13"
 
 [package.source]
-type = "git"
-url = "https://github.com/RicterZ/moltbot-python.git"
-reference = "HEAD"
-resolved_reference = "814c0c96c86e8951175ba6bea3b88f55f80e8a30"
+type = "url"
+url = "https://github.com/RicterZ/moltbot-python/archive/refs/tags/v0.0.1.zip"
 
 [[package]]
 name = "pycparser"
@@ -1045,4 +1044,4 @@ files = [
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.11"
-content-hash = "d08c697ccb283fe4d42bd5d272665596b8e88dcaa25c4a0eecb5adc594aa3446"
+content-hash = "2d4e96693f314488fe106862ec050d9f3c8307ce8a101e5c24072832c9aa8824"

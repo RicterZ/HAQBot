@@ -14,7 +14,7 @@ python-dotenv = "^1.0.1"
 httpx = "^0.27.0"
 fastapi = "^0.104.1"
 uvicorn = {extras = ["standard"], version = "^0.24.0"}
-moltbot = {git = "https://github.com/RicterZ/moltbot-python.git"}
+moltbot = {url = "https://github.com/RicterZ/moltbot-python/archive/refs/tags/v0.0.1.zip"}
 
 
 [build-system]
