@@ -8,6 +8,7 @@ from websocket import WebSocketApp
 from maid.clients.homeassistant import HomeAssistantClient
 from maid.clients.napcat import get_voice_file
 from maid.clients.tencent_asr import sentence_recognize
+from maid.clients.clawdbot import clawdbot_enabled, send_clawdbot_message
 from maid.utils.logger import logger
 from maid.utils.i18n import t
 from maid.utils.response import send_response, run_async_task
@@ -76,6 +77,23 @@ def extract_message_content(message: dict) -> Tuple[str, Optional[str]]:
     return clean_text, None
 
 
+async def _resolve_text(clean_text: Optional[str], record_file: Optional[str]) -> Optional[str]:
+    """Normalize text, falling back to voice transcription when needed."""
+    if clean_text:
+        return clean_text
+
+    if record_file:
+        try:
+            audio_bytes = await get_voice_file(record_file, out_format="mp3")
+            clean_text = await sentence_recognize(audio_bytes, voice_format="mp3")
+            logger.info(f"ASR transcribed voice to text: {clean_text}")
+            return clean_text
+        except Exception as exc:
+            logger.warning(f"ASR failed, skip replying: {exc}")
+            return None
+    return None
+
+
 async def process_conversation_async(text: str, group_id: str, language: Optional[str] = None) -> Dict[str, Any]:
     """Process conversation asynchronously
     
@@ -107,15 +125,7 @@ async def process_conversation_async(text: str, group_id: str, language: Optiona
 async def _process_conversation_task(ws: WebSocketApp, group_id: str, message_id: Optional[str], clean_text: Optional[str], record_file: Optional[str]):
     """Async task: process conversation message"""
     try:
-        if not clean_text and record_file:
-            try:
-                audio_bytes = await get_voice_file(record_file, out_format="mp3")
-                clean_text = await sentence_recognize(audio_bytes, voice_format="mp3")
-                logger.info(f"ASR transcribed voice to text: {clean_text}")
-            except Exception as exc:
-                logger.warning(f"ASR failed, skip replying: {exc}")
-                return
-        
+        clean_text = await _resolve_text(clean_text, record_file)
         if not clean_text:
             return
         
@@ -174,29 +184,55 @@ async def _process_conversation_task(ws: WebSocketApp, group_id: str, message_id
         logger.info(f"Conversation response: {response_text[:100]}{'...' if len(response_text) > 100 else ''}")
         
         send_response(ws, group_id, message_id, response_text)
-        
+
     except Exception as e:
         logger.error(f"Error processing conversation: {e}", exc_info=True)
         error_msg = t("error_processing_request", error=str(e))
         send_response(ws, group_id, message_id, error_msg)
 
 
+async def _process_clawdbot_task(ws: WebSocketApp, group_id: str, message_id: Optional[str], clean_text: Optional[str], record_file: Optional[str]):
+    """Async task: proxy conversation to Clawdbot gateway"""
+    try:
+        clean_text = await _resolve_text(clean_text, record_file)
+        if not clean_text:
+            return
+
+        logger.info(f"Received Clawdbot message (after removing @): {clean_text}")
+        reply = await send_clawdbot_message(clean_text, group_id)
+
+        if not reply or reply.strip() == "":
+            logger.warning("Clawdbot response is empty, using default message")
+            reply = t("request_processed")
+
+        logger.info(f"Clawdbot response: {reply[:100]}{'...' if len(reply) > 100 else ''}")
+        send_response(ws, group_id, message_id, reply)
+    except Exception as e:
+        logger.error(f"Error processing Clawdbot request: {e}", exc_info=True)
+        error_msg = t("error_processing_request", error=str(e))
+        send_response(ws, group_id, message_id, error_msg)
+
+
 def conversation_handler(ws: WebSocketApp, message: dict):
     """Handle natural language conversation messages
-    
+
     Args:
         ws: WebSocket connection
         message: Message dictionary from WebSocket
     """
     group_id = message["group_id"]
     message_id = message.get("message_id")
-    
+
     clean_text, record_file = extract_message_content(message)
-    
+
     if not clean_text and not record_file:
         return
-    
-    task = _process_conversation_task(ws, group_id, message_id, clean_text, record_file)
+
+    if clawdbot_enabled():
+        task = _process_clawdbot_task(ws, group_id, message_id, clean_text, record_file)
+    else:
+        task = _process_conversation_task(ws, group_id, message_id, clean_text, record_file)
+
     thread = threading.Thread(target=run_async_task, args=(task,), daemon=True)
     thread.start()
 

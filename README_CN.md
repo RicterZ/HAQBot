@@ -29,6 +29,7 @@
 - **实体缓存**：内存缓存实现快速实体查找，避免重复 API 调用
 - **权限控制**：通过环境变量限制特定 QQ 用户控制设备
 - **国际化支持**：支持中文和英文
+- **Clawdbot 中转模式**：可选开关，将群聊对话转发到 Clawdbot，同时保留现有命令与权限控制
 
 ## 快速开始
 
@@ -102,6 +103,21 @@ TENCENT_SECRET_ID=你的腾讯云密钥ID
 TENCENT_SECRET_KEY=你的腾讯云密钥
 TENCENT_ASR_ENGINE=16k_zh
 TENCENT_ASR_REGION=
+
+# Clawdbot 中转模式（可选）
+# 开启后将 QQ 消息转发到 Clawdbot 而非 Home Assistant
+CLAWDBOT_ENABLED=false
+# Clawdbot 网关 WebSocket 地址
+CLAWDBOT_URL=ws://127.0.0.1:18789
+# 网关认证（token 或 password，启用时至少设置一个）
+CLAWDBOT_TOKEN=
+CLAWDBOT_PASSWORD=
+# 会话键，默认 qq-group-<group_id>
+CLAWDBOT_SESSION_KEY=
+# 作用域（空则默认 operator.admin）
+CLAWDBOT_SCOPES=
+# 等待最终回复的超时时间（秒），空则等待直至完成
+CLAWDBOT_WAIT_TIMEOUT=60
 ```
 
 ### 配置指南

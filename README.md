@@ -30,6 +30,7 @@ QQ Bot for controlling Home Assistant devices via natural language conversation.
 - **Entity Caching**: In-memory cache for fast entity lookup without repeated API calls
 - **Permission Control**: Restrict device control to specific QQ users via environment variable
 - **Internationalization**: Support for Chinese and English languages
+- **Clawdbot Relay Mode**: Optional switch to route group chats to Clawdbot while keeping direct commands/allowlists intact
 
 ## Quick Start
 
@@ -103,6 +104,21 @@ TENCENT_SECRET_ID=your_tencent_secret_id
 TENCENT_SECRET_KEY=your_tencent_secret_key
 TENCENT_ASR_ENGINE=16k_zh
 TENCENT_ASR_REGION=
+
+# Clawdbot relay mode (optional)
+# Enable to route QQ messages to Clawdbot instead of Home Assistant
+CLAWDBOT_ENABLED=false
+# Clawdbot gateway WebSocket URL
+CLAWDBOT_URL=ws://127.0.0.1:18789
+# Gateway auth (token or password; at least one required when enabled)
+CLAWDBOT_TOKEN=
+CLAWDBOT_PASSWORD=
+# Session key used by Clawdbot (defaults to qq-group-<group_id> when empty)
+CLAWDBOT_SESSION_KEY=
+# Space/comma separated scopes; defaults to operator.admin
+CLAWDBOT_SCOPES=
+# Wait timeout in seconds for final reply (empty to wait indefinitely)
+CLAWDBOT_WAIT_TIMEOUT=60
 ```
 
 ### Configuration Guide
