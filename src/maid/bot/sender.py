@@ -117,7 +117,7 @@ def send_group_multimodal_message(
                 file_node = ForwardNode(
                     user_id=user_id,
                     nickname=display_nickname,
-                    content=[FileMessage(file_path)] # use FileMessage instead of VideoMessage
+                    content=[VideoMessage(file_path)]
                 )
                 logger.info(f"Sending video message: {file_path}")
             else:
@@ -157,4 +157,5 @@ def send_group_multimodal_message(
     except Exception as e:
         logger.error(f"Failed to send forward message: {e}")
         return False
+
 
